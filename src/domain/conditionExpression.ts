@@ -1,0 +1,162 @@
+export type ConditionFieldKey =
+  | "exportCount"
+  | "sensitivity"
+  | "riskLevel"
+  | "reportScope"
+  | "dataAction";
+
+export type ConditionOperatorKey = "gt" | "gte" | "eq" | "contains" | "notContains";
+
+export interface ConditionParts {
+  field: ConditionFieldKey;
+  operator: ConditionOperatorKey;
+  value: string;
+}
+
+export interface ConditionFieldOption {
+  value: ConditionFieldKey;
+  label: string;
+  valueKind: "number" | "select";
+  valueOptions?: string[];
+}
+
+export interface ConditionOperatorOption {
+  value: ConditionOperatorKey;
+  label: string;
+}
+
+export const CONDITION_FIELDS: ConditionFieldOption[] = [
+  { value: "exportCount", label: "导出数量", valueKind: "number" },
+  {
+    value: "sensitivity",
+    label: "敏感字段",
+    valueKind: "select",
+    valueOptions: ["未脱敏人脸图像", "原图", "完整证件号", "完整手机号"],
+  },
+  {
+    value: "riskLevel",
+    label: "风险等级",
+    valueKind: "select",
+    valueOptions: ["高", "中", "低"],
+  },
+  {
+    value: "reportScope",
+    label: "报表范围",
+    valueKind: "select",
+    valueOptions: ["仅统计字段", "包含敏感字段", "规则清单", "措施清单"],
+  },
+  {
+    value: "dataAction",
+    label: "处置动作",
+    valueKind: "select",
+    valueOptions: ["访问", "导出", "删除", "匿名化"],
+  },
+];
+
+export const CONDITION_OPERATORS: ConditionOperatorOption[] = [
+  { value: "gt", label: "大于" },
+  { value: "gte", label: "大于等于" },
+  { value: "eq", label: "等于" },
+  { value: "contains", label: "包含" },
+  { value: "notContains", label: "不包含" },
+];
+
+export const DEFAULT_CONDITION_PARTS: ConditionParts = {
+  field: "exportCount",
+  operator: "gt",
+  value: "500",
+};
+
+function fieldMeta(field: ConditionFieldKey) {
+  return CONDITION_FIELDS.find((item) => item.value === field) || CONDITION_FIELDS[0];
+}
+
+function operatorMeta(operator: ConditionOperatorKey) {
+  return CONDITION_OPERATORS.find((item) => item.value === operator) || CONDITION_OPERATORS[0];
+}
+
+export function getConditionFieldMeta(field: ConditionFieldKey) {
+  return fieldMeta(field);
+}
+
+export function composeConditionExpression(parts: ConditionParts) {
+  const field = fieldMeta(parts.field).label;
+  const operator = operatorMeta(parts.operator).label;
+  const value = `${parts.value || ""}`.trim();
+  return [field, operator, value].filter(Boolean).join(" ");
+}
+
+function detectOperator(expression: string): ConditionOperatorKey {
+  if (expression.includes("大于等于") || expression.includes(">=")) return "gte";
+  if (expression.includes("大于") || expression.includes(">")) return "gt";
+  if (expression.includes("不包含")) return "notContains";
+  if (expression.includes("包含")) return "contains";
+  if (expression.includes("等于") || expression.includes("=")) return "eq";
+  return "eq";
+}
+
+function stripKnownTerms(expression: string, field: ConditionFieldKey, operator: ConditionOperatorKey) {
+  const fieldLabel = fieldMeta(field).label;
+  const operatorLabel = operatorMeta(operator).label;
+  return expression
+    .replace(fieldLabel, "")
+    .replace(operatorLabel, "")
+    .replace(/>=|>|=/g, "")
+    .replace(/^或/, "")
+    .trim();
+}
+
+export function parseConditionExpression(expression: string): ConditionParts {
+  const trimmed = expression.trim();
+  if (!trimmed || trimmed === "请配置条件表达") return { ...DEFAULT_CONDITION_PARTS };
+
+  const directField = CONDITION_FIELDS.find((item) => trimmed.startsWith(item.label));
+  if (directField) {
+    const operator = detectOperator(trimmed);
+    const rawValue = stripKnownTerms(trimmed, directField.value, operator);
+    const value =
+      directField.valueKind === "number"
+        ? rawValue.match(/\d+/)?.[0] || DEFAULT_CONDITION_PARTS.value
+        : directField.valueOptions?.find((option) => rawValue.includes(option)) ||
+          rawValue.split(/[、,，或]/)[0]?.trim() ||
+          DEFAULT_CONDITION_PARTS.value;
+    return {
+      field: directField.value,
+      operator,
+      value,
+    };
+  }
+
+  const exportCountMatch = trimmed.match(/导出数量\s*(?:>|大于|>=|大于等于)\s*(\d+)/);
+  if (exportCountMatch) {
+    return {
+      field: "exportCount",
+      operator: trimmed.includes(">=") || trimmed.includes("大于等于") ? "gte" : "gt",
+      value: exportCountMatch[1],
+    };
+  }
+
+  const sensitivity = ["未脱敏人脸图像", "原图", "完整证件号", "完整手机号"].find((item) =>
+    trimmed.includes(item),
+  );
+  if (sensitivity) {
+    return { field: "sensitivity", operator: "contains", value: sensitivity };
+  }
+
+  if (trimmed.includes("统计") || trimmed.includes("规则清单") || trimmed.includes("措施清单")) {
+    const value = trimmed.includes("敏感") ? "包含敏感字段" : "仅统计字段";
+    return { field: "reportScope", operator: "eq", value };
+  }
+
+  const dataAction = ["访问", "导出", "删除", "匿名化"].find((item) => trimmed.includes(item));
+  if (dataAction) return { field: "dataAction", operator: "eq", value: dataAction };
+
+  const riskLevel = ["高", "中", "低"].find((item) => trimmed.includes(item));
+  if (riskLevel) return { field: "riskLevel", operator: "eq", value: riskLevel };
+
+  return {
+    field: "riskLevel",
+    operator: "eq",
+    value: "高",
+  };
+}

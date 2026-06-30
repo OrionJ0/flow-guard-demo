@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>审批场景管理</title>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --line: #e4ebf2;
+      --line-strong: #c8d5e3;
+      --text: #1f2d3d;
+      --muted: #65758a;
+      --blue: #176bdc;
+      --blue-soft: #eaf3ff;
+      --green: #13a66b;
+      --green-soft: #e8f7f0;
+      --orange: #d9801f;
+      --orange-soft: #fff3df;
+      --red: #d54941;
+      --red-soft: #fdecec;
+      --shadow: 0 8px 24px rgba(22, 42, 65, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+      font-size: 14px;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+
+    .topbar {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 22px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: var(--blue);
+      flex: 0 0 auto;
+    }
+    .brand-icon svg { width: 18px; height: 18px; }
+    .brand strong { display: block; color: var(--blue); font-size: 16px; }
+    .brand span { display: block; color: var(--muted); font-size: 12px; }
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      min-height: 34px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      padding: 0 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+    .btn svg { width: 16px; height: 16px; }
+    .btn-primary {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+    .btn-danger {
+      border-color: var(--red);
+      background: var(--red-soft);
+      color: var(--red);
+    }
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      display: inline-grid;
+      place-items: center;
+      flex: 0 0 auto;
+    }
+    .icon-btn svg { width: 16px; height: 16px; }
+
+    .main {
+      padding: 18px 22px 28px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+    .page-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+    .eyebrow { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+    h1 { margin: 0; font-size: 22px; line-height: 1.3; }
+    .subtitle { margin: 7px 0 0; color: var(--muted); line-height: 1.6; }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+    .panel-head {
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+    }
+    .panel-title svg { width: 17px; height: 17px; color: var(--blue); }
+    .panel-body { padding: 14px; }
+
+    .filters {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) 170px auto;
+      gap: 10px;
+      align-items: end;
+      margin-bottom: 14px;
+    }
+    .field { display: grid; gap: 5px; min-width: 0; }
+    .field label { color: var(--muted); font-size: 12px; }
+    .field input, .field select, .field textarea {
+      width: 100%;
+      min-height: 34px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      padding: 0 10px;
+      outline: none;
+    }
+    .field textarea {
+      min-height: 88px;
+      padding: 9px 10px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .summary-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+    .summary-card span { color: var(--muted); font-size: 12px; }
+    .summary-card strong { font-size: 24px; line-height: 1.1; }
+
+    .scene-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(260px, 1fr));
+      gap: 12px;
+    }
+    .scene-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 14px;
+      min-height: 214px;
+      display: grid;
+      align-content: space-between;
+      gap: 12px;
+    }
+    .scene-card__head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .scene-card h3 {
+      margin: 0 0 6px;
+      font-size: 16px;
+      line-height: 1.45;
+    }
+    .scene-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .status {
+      min-height: 22px;
+      border-radius: 999px;
+      padding: 0 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .status-blue { color: var(--blue); background: var(--blue-soft); }
+    .status-green { color: var(--green); background: var(--green-soft); }
+    .status-orange { color: var(--orange); background: var(--orange-soft); }
+    .status-red { color: var(--red); background: var(--red-soft); }
+
+    .scene-meta {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .meta-item {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface-soft);
+      padding: 8px;
+      display: grid;
+      gap: 4px;
+    }
+    .meta-item span { color: var(--muted); font-size: 12px; }
+    .meta-item strong { font-size: 18px; line-height: 1.1; }
+
+    .scene-card__actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .scene-tools {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    dialog {
+      width: min(560px, calc(100vw - 28px));
+      border: 0;
+      border-radius: 10px;
+      padding: 0;
+      box-shadow: 0 20px 60px rgba(15, 35, 58, 0.22);
+    }
+    dialog::backdrop { background: rgba(18, 32, 48, 0.36); }
+    .dialog-head {
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 700;
+    }
+    .dialog-body { padding: 16px; display: grid; gap: 12px; }
+    .dialog-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 0 16px 16px;
+    }
+
+    .empty {
+      min-height: 220px;
+      display: grid;
+      place-items: center;
+      border: 1px dashed var(--line-strong);
+      border-radius: 8px;
+      color: var(--muted);
+      background: var(--surface-soft);
+      text-align: center;
+      line-height: 1.7;
+    }
+    .toast {
+      position: fixed;
+      right: 20px;
+      bottom: 18px;
+      min-width: 260px;
+      max-width: min(420px, calc(100vw - 40px));
+      border-radius: 8px;
+      background: #24313d;
+      color: #fff;
+      padding: 12px 14px;
+      box-shadow: 0 16px 38px rgba(0, 0, 0, 0.2);
+      display: none;
+      z-index: 80;
+      line-height: 1.6;
+    }
+    .toast.is-visible { display: block; }
+
+    @media (max-width: 1100px) {
+      .scene-grid, .summary-grid { grid-template-columns: repeat(2, minmax(240px, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      .topbar, .page-head { align-items: flex-start; flex-direction: column; }
+      .main { padding: 14px 12px 24px; }
+      .filters, .scene-grid, .summary-grid { grid-template-columns: 1fr; }
+      .scene-meta { grid-template-columns: 1fr; }
+      .actions { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-icon"><i data-lucide="list-tree"></i></span>
+      <div>
+        <strong>审批场景管理</strong>
+        <span>先维护业务场景，再进入对应流程配置</span>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" type="button" id="resetDemo"><i data-lucide="rotate-ccw"></i>恢复示例</button>
+      <button class="btn btn-primary" type="button" id="openCreate"><i data-lucide="plus"></i>新增场景</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <div class="eyebrow">系统管理 / 流程审批 / 审批场景</div>
+        <h1>审批场景</h1>
+        <p class="subtitle">审批场景由用户自定义维护。每个场景拥有独立流程，可进入配置页设置审批人、条件分支和抄送人。</p>
+      </div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-card"><span>场景数量</span><strong id="sceneCount">0</strong></div>
+      <div class="summary-card"><span>已启用</span><strong id="enabledCount">0</strong></div>
+      <div class="summary-card"><span>审批节点</span><strong id="approvalCount">0</strong></div>
+      <div class="summary-card"><span>条件分支</span><strong id="branchCount">0</strong></div>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><i data-lucide="files"></i>场景列表</div>
+      </div>
+      <div class="panel-body">
+        <div class="filters">
+          <div class="field">
+            <label for="keyword">搜索</label>
+            <input id="keyword" placeholder="输入场景名称、说明或标签" />
+          </div>
+          <div class="field">
+            <label for="statusFilter">状态</label>
+            <select id="statusFilter">
+              <option value="">全部</option>
+              <option value="已启用">已启用</option>
+              <option value="草稿">草稿</option>
+            </select>
+          </div>
+          <div class="actions">
+            <button class="btn" type="button" id="clearFilter"><i data-lucide="x"></i>清空</button>
+          </div>
+        </div>
+        <div class="scene-grid" id="sceneGrid"></div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="sceneDialog">
+    <form method="dialog">
+      <div class="dialog-head">
+        <span id="dialogTitle">新增场景</span>
+        <button class="icon-btn" type="button" id="closeDialog" aria-label="关闭"><i data-lucide="x"></i></button>
+      </div>
+      <div class="dialog-body">
+        <input type="hidden" id="editingId" />
+        <div class="field">
+          <label for="sceneName">场景名称</label>
+          <input id="sceneName" required placeholder="例如：高危数据访问、备案报表导出" />
+        </div>
+        <div class="field">
+          <label for="sceneTag">场景标签</label>
+          <select id="sceneTag">
+            <option value="自定义">自定义</option>
+            <option value="高危">高危</option>
+            <option value="强制">强制</option>
+            <option value="受控">受控</option>
+            <option value="通用">通用</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sceneDesc">说明</label>
+          <textarea id="sceneDesc" placeholder="说明这个场景适用的业务范围、触发动作或风险要求"></textarea>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn" type="button" id="cancelDialog">取消</button>
+        <button class="btn btn-primary" type="button" id="saveScene">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const STORAGE_KEY = "approval.flow.scenes.v3";
+    let scenes = loadScenes();
+    let toastTimer = null;
+
+    function seedScenes() {
+      return [
+        createScene("高危数据访问", "高危", "查看原图、完整证件号、批量导出等高危访问动作。", createRiskWorkflow()),
+        createScene("删除/匿名化", "强制", "覆盖主数据、备份、缓存、临时文件的数据处置任务。", createDisposalWorkflow()),
+        createScene("备案报表导出", "受控", "备案、备案变更、注销备案材料导出。", createReportWorkflow())
+      ];
+    }
+
+    function createScene(name, tag, desc, workflow) {
+      return {
+        id: `scene_${Date.now()}_${Math.random().toString(16).slice(2, 7)}`,
+        name,
+        tag,
+        desc,
+        updatedAt: new Date().toISOString(),
+        workflow
+      };
+    }
+
+    function baseWorkflow(name) {
+      return {
+        name: `${name}审批`,
+        status: "草稿",
+        nodes: [
+          node("start", "提交申请", { desc: "填写申请内容" }),
+          node("approval", "审批人", { approverType: "指定角色", approvers: "请选择审批人", approvalMode: "或签", optionalRange: "全部成员", timeoutHours: 8, desc: "确认申请内容" }),
+          node("end", "流程结束", { desc: "流程结束并归档" })
+        ]
+      };
+    }
+
+    function createRiskWorkflow() {
+      const workflow = baseWorkflow("高危数据访问");
+      workflow.nodes.splice(2, 0, condition("风险条件判断", [
+        branch("高风险", "导出数量 > 500 或包含未脱敏人脸图像", [mini("approval", "安全管理员复核"), mini("cc", "抄送审计员")]),
+        branch("普通风险", "仅查询脱敏字段或统计结果", [mini("approval", "合规管理员审批")])
+      ]));
+      return workflow;
+    }
+
+    function createDisposalWorkflow() {
+      return {
+        name: "删除/匿名化审批",
+        status: "草稿",
+        nodes: [
+          node("start", "提交处置申请", { desc: "选择删除或匿名化范围" }),
+          node("approval", "数据管理员确认", { approvers: "数据管理员", approvalMode: "会签", optionalRange: "数据安全组", timeoutHours: 4, desc: "确认数据范围和处置方式" }),
+          node("approval", "合规管理员审核", { approvers: "合规管理员", approvalMode: "或签", optionalRange: "合规管理组", timeoutHours: 8, desc: "核对处理规则和备案影响" }),
+          node("approval", "安全管理员复核", { approvers: "安全管理员", approvalMode: "会签", optionalRange: "安全管理组", timeoutHours: 8, desc: "确认风险、执行窗口和回滚策略" }),
+          node("end", "完成归档", { desc: "归档处置记录和失败原因" })
+        ]
+      };
+    }
+
+    function createReportWorkflow() {
+      return {
+        name: "备案报表导出审批",
+        status: "草稿",
+        nodes: [
+          node("start", "提交导出申请", { desc: "选择备案、备案变更或注销备案材料" }),
+          condition("报表敏感度判断", [
+            branch("含敏感字段", "包含原图、完整证件号、完整手机号", [mini("approval", "安全管理员复核")]),
+            branch("仅统计字段", "仅包含统计结果、规则清单、措施清单", [mini("approval", "合规管理员审批")])
+          ]),
+          node("end", "完成导出", { desc: "生成水印文件并记录文件摘要" })
+        ]
+      };
+    }
+
+    function node(type, title, overrides = {}) {
+      return {
+        id: `${type}_${Math.random().toString(16).slice(2, 8)}`,
+        type,
+        title,
+        approverType: type === "approval" ? "指定角色" : "无",
+        approvers: type === "approval" ? "合规管理员" : "",
+        approvalMode: type === "approval" ? "或签" : "无",
+        optionalRange: type === "approval" ? "全部成员" : "",
+        timeoutHours: type === "approval" ? 8 : 0,
+        timeoutAction: type === "approval" ? "提醒审批人" : "无动作",
+        desc: "",
+        ccRange: "",
+        ccTiming: "流程结束后",
+        ccApplicant: false,
+        ccAuditor: false,
+        ...overrides
+      };
+    }
+
+    function condition(title, branches) {
+      return { id: `condition_${Math.random().toString(16).slice(2, 8)}`, type: "condition", title, desc: "按条件优先级命中分支", branches };
+    }
+    function branch(name, expression, steps) {
+      return { id: `branch_${Math.random().toString(16).slice(2, 8)}`, name, expression, steps };
+    }
+    function mini(type, title) {
+      return { id: `${type}_${Math.random().toString(16).slice(2, 8)}`, type, title };
+    }
+
+    function loadScenes() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (error) {
+        console.warn(error);
+      }
+      const seeded = seedScenes();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+      return seeded;
+    }
+
+    function saveScenes() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(scenes));
+    }
+
+    function tagClass(tag) {
+      if (tag === "高危") return "status-red";
+      if (tag === "强制") return "status-orange";
+      if (tag === "受控") return "status-blue";
+      if (tag === "通用") return "status-green";
+      return "status-blue";
+    }
+
+    function countApprovals(workflow) {
+      return workflow.nodes.filter(item => item.type === "approval").length +
+        workflow.nodes.filter(item => item.type === "condition").reduce((sum, item) => sum + item.branches.reduce((branchSum, br) => branchSum + br.steps.filter(step => step.type === "approval").length, 0), 0);
+    }
+
+    function countBranches(workflow) {
+      return workflow.nodes.filter(item => item.type === "condition").reduce((sum, item) => sum + item.branches.length, 0);
+    }
+
+    function render() {
+      const keyword = document.getElementById("keyword").value.trim().toLowerCase();
+      const status = document.getElementById("statusFilter").value;
+      const filtered = scenes.filter(scene => {
+        const text = `${scene.name} ${scene.desc} ${scene.tag}`.toLowerCase();
+        return (!keyword || text.includes(keyword)) && (!status || scene.workflow.status === status);
+      });
+
+      document.getElementById("sceneCount").textContent = scenes.length;
+      document.getElementById("enabledCount").textContent = scenes.filter(scene => scene.workflow.status === "已启用").length;
+      document.getElementById("approvalCount").textContent = scenes.reduce((sum, scene) => sum + countApprovals(scene.workflow), 0);
+      document.getElementById("branchCount").textContent = scenes.reduce((sum, scene) => sum + countBranches(scene.workflow), 0);
+
+      const grid = document.getElementById("sceneGrid");
+      if (!filtered.length) {
+        grid.innerHTML = `<div class="empty">暂无匹配场景<br />可以调整筛选条件或新增审批场景</div>`;
+        return;
+      }
+      grid.innerHTML = filtered.map(scene => `
+        <article class="scene-card">
+          <div>
+            <div class="scene-card__head">
+              <div>
+                <h3>${escapeHtml(scene.name)}</h3>
+                <p>${escapeHtml(scene.desc || "未填写说明")}</p>
+              </div>
+              <span class="status ${tagClass(scene.tag)}">${escapeHtml(scene.tag || "自定义")}</span>
+            </div>
+          </div>
+          <div class="scene-meta">
+            <div class="meta-item"><span>审批节点</span><strong>${countApprovals(scene.workflow)}</strong></div>
+            <div class="meta-item"><span>条件分支</span><strong>${countBranches(scene.workflow)}</strong></div>
+            <div class="meta-item"><span>状态</span><strong style="font-size: 14px;">${scene.workflow.status}</strong></div>
+          </div>
+          <div class="scene-card__actions">
+            <a class="btn btn-primary" href="./流程配置.html?scene=${encodeURIComponent(scene.id)}"><i data-lucide="workflow"></i>配置流程</a>
+            <div class="scene-tools">
+              <button class="icon-btn" type="button" data-edit="${scene.id}" title="编辑"><i data-lucide="pencil"></i></button>
+              <button class="icon-btn" type="button" data-copy="${scene.id}" title="复制"><i data-lucide="copy"></i></button>
+              <button class="icon-btn" type="button" data-delete="${scene.id}" title="删除"><i data-lucide="trash-2"></i></button>
+            </div>
+          </div>
+        </article>
+      `).join("");
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function openDialog(scene = null) {
+      document.getElementById("dialogTitle").textContent = scene ? "编辑场景" : "新增场景";
+      document.getElementById("editingId").value = scene?.id || "";
+      document.getElementById("sceneName").value = scene?.name || "";
+      document.getElementById("sceneTag").value = scene?.tag || "自定义";
+      document.getElementById("sceneDesc").value = scene?.desc || "";
+      document.getElementById("sceneDialog").showModal();
+    }
+
+    function closeDialog() {
+      document.getElementById("sceneDialog").close();
+    }
+
+    function saveSceneFromDialog() {
+      const id = document.getElementById("editingId").value;
+      const name = document.getElementById("sceneName").value.trim();
+      if (!name) {
+        showToast("请填写场景名称");
+        return;
+      }
+      const tag = document.getElementById("sceneTag").value;
+      const desc = document.getElementById("sceneDesc").value.trim();
+      if (id) {
+        const scene = scenes.find(item => item.id === id);
+        if (scene) {
+          scene.name = name;
+          scene.tag = tag;
+          scene.desc = desc;
+          scene.workflow.name = `${name}审批`;
+          scene.workflow.status = scene.workflow.status === "已启用" ? "草稿" : scene.workflow.status;
+          scene.updatedAt = new Date().toISOString();
+        }
+      } else {
+        scenes.push(createScene(name, tag, desc, baseWorkflow(name)));
+      }
+      saveScenes();
+      closeDialog();
+      render();
+      showToast(id ? "场景已更新" : "场景已新增");
+    }
+
+    function copyScene(id) {
+      const scene = scenes.find(item => item.id === id);
+      if (!scene) return;
+      const copy = JSON.parse(JSON.stringify(scene));
+      copy.id = `scene_${Date.now()}_${Math.random().toString(16).slice(2, 7)}`;
+      copy.name = `${scene.name} 副本`;
+      copy.workflow.status = "草稿";
+      copy.updatedAt = new Date().toISOString();
+      scenes.push(copy);
+      saveScenes();
+      render();
+      showToast("场景已复制");
+    }
+
+    function deleteScene(id) {
+      const scene = scenes.find(item => item.id === id);
+      if (!scene) return;
+      if (!confirm(`确认删除审批场景「${scene.name}」？`)) return;
+      scenes = scenes.filter(item => item.id !== id);
+      saveScenes();
+      render();
+      showToast("场景已删除");
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("is-visible");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("is-visible"), 2200);
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    document.getElementById("openCreate").addEventListener("click", () => openDialog());
+    document.getElementById("closeDialog").addEventListener("click", closeDialog);
+    document.getElementById("cancelDialog").addEventListener("click", closeDialog);
+    document.getElementById("saveScene").addEventListener("click", saveSceneFromDialog);
+    document.getElementById("keyword").addEventListener("input", render);
+    document.getElementById("statusFilter").addEventListener("change", render);
+    document.getElementById("clearFilter").addEventListener("click", () => {
+      document.getElementById("keyword").value = "";
+      document.getElementById("statusFilter").value = "";
+      render();
+    });
+    document.getElementById("resetDemo").addEventListener("click", () => {
+      if (!confirm("确认恢复示例场景？当前自定义场景会被覆盖。")) return;
+      scenes = seedScenes();
+      saveScenes();
+      render();
+      showToast("示例场景已恢复");
+    });
+    document.getElementById("sceneGrid").addEventListener("click", event => {
+      const edit = event.target.closest("[data-edit]");
+      const copy = event.target.closest("[data-copy]");
+      const del = event.target.closest("[data-delete]");
+      if (edit) openDialog(scenes.find(item => item.id === edit.dataset.edit));
+      if (copy) copyScene(copy.dataset.copy);
+      if (del) deleteScene(del.dataset.delete);
+    });
+
+    render();
+    if (window.lucide) window.lucide.createIcons();
+  </script>
+</body>
+</html>

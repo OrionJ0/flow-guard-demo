@@ -1,0 +1,1857 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>流程配置</title>
+  <script defer src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --line: #dde5ee;
+      --line-strong: #bfccda;
+      --text: #1f2a37;
+      --muted: #66758a;
+      --blue: #1567d3;
+      --blue-soft: #eaf3ff;
+      --green: #17875a;
+      --green-soft: #e7f6ef;
+      --orange: #bd6b13;
+      --orange-soft: #fff1dd;
+      --red: #c9362e;
+      --red-soft: #fdebea;
+      --purple: #6952c7;
+      --purple-soft: #f0edff;
+      --shadow: 0 10px 26px rgba(31, 42, 55, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+      font-size: 14px;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+
+    .topbar {
+      height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 18px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: #25364a;
+      flex: 0 0 auto;
+    }
+    .brand-mark svg { width: 19px; height: 19px; }
+    .brand strong {
+      display: block;
+      font-size: 16px;
+      line-height: 1.25;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 44vw;
+    }
+    .brand span {
+      color: var(--muted);
+      font-size: 12px;
+      display: block;
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 44vw;
+    }
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      min-height: 34px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 0 12px;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+    .btn svg { width: 16px; height: 16px; }
+    .btn-primary {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+    .btn-danger {
+      border-color: var(--red);
+      background: var(--red-soft);
+      color: var(--red);
+    }
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      display: inline-grid;
+      place-items: center;
+      flex: 0 0 auto;
+    }
+    .icon-btn svg { width: 16px; height: 16px; }
+
+    .modeler {
+      min-height: calc(100vh - 58px);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 12px;
+      padding: 12px;
+    }
+    .canvas-panel, .props-panel {
+      min-width: 0;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .props-panel {
+      align-self: start;
+      display: grid;
+      align-content: start;
+    }
+    .panel-head {
+      min-height: 46px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .panel-title {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+    }
+    .panel-title svg { width: 17px; height: 17px; color: var(--blue); }
+    .panel-body { padding: 12px; }
+
+    .scene-summary {
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 10px;
+    }
+    .scene-summary h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+    .scene-summary p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 12px;
+    }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .metric {
+      min-height: 58px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface-soft);
+      padding: 8px;
+      display: grid;
+      align-content: center;
+      gap: 3px;
+    }
+    .metric span {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .metric strong {
+      font-size: 18px;
+      line-height: 1.1;
+    }
+
+    .tool-list {
+      display: grid;
+      gap: 8px;
+    }
+    .tool-item {
+      width: 100%;
+      min-height: 58px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) 18px;
+      align-items: center;
+      gap: 9px;
+      padding: 8px;
+      text-align: left;
+    }
+    .tool-item:hover {
+      border-color: #9bbbed;
+      background: #fbfdff;
+    }
+    .tool-icon {
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      background: var(--surface-soft);
+      color: var(--blue);
+    }
+    .tool-icon svg { width: 18px; height: 18px; }
+    .tool-copy { min-width: 0; }
+    .tool-copy strong {
+      display: block;
+      margin-bottom: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tool-copy span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tool-item > svg {
+      width: 16px;
+      height: 16px;
+      color: var(--muted);
+    }
+
+    .status {
+      min-height: 22px;
+      border-radius: 999px;
+      padding: 0 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .status strong { margin-left: 4px; }
+    .status-blue { color: var(--blue); background: var(--blue-soft); }
+    .status-green { color: var(--green); background: var(--green-soft); }
+    .status-orange { color: var(--orange); background: var(--orange-soft); }
+    .status-red { color: var(--red); background: var(--red-soft); }
+    .status-purple { color: var(--purple); background: var(--purple-soft); }
+
+    .canvas-panel {
+      min-height: calc(100vh - 82px);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+    .canvas-toolbar {
+      min-height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+    .canvas-meta {
+      min-width: 210px;
+      max-width: 320px;
+      display: grid;
+      gap: 2px;
+    }
+    .canvas-meta strong {
+      font-size: 15px;
+      line-height: 1.25;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .canvas-meta span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .canvas-stats {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .toolbar-tools {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .tool-chip {
+      min-height: 32px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      padding: 0 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .tool-chip:hover {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: var(--blue-soft);
+    }
+    .tool-chip svg { width: 15px; height: 15px; }
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .zoom-value {
+      min-width: 50px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 12px;
+    }
+    .canvas-scroll {
+      min-height: 0;
+      overflow: auto;
+      background:
+        linear-gradient(90deg, rgba(206, 217, 230, .58) 1px, transparent 1px),
+        linear-gradient(rgba(206, 217, 230, .58) 1px, transparent 1px),
+        #fbfdff;
+      background-size: 24px 24px;
+      position: relative;
+    }
+    .zoom-shell {
+      position: relative;
+      min-width: 100%;
+      min-height: 100%;
+    }
+    .diagram {
+      position: relative;
+      transform-origin: 0 0;
+    }
+    .connector-layer {
+      position: absolute;
+      inset: 0;
+      overflow: visible;
+      z-index: 1;
+    }
+    .edge-path {
+      fill: none;
+      stroke: #7f8fa4;
+      stroke-width: 1.8;
+    }
+    .edge-path.is-branch { stroke: #8a71db; }
+    .edge-path.is-selected {
+      stroke: var(--blue);
+      stroke-width: 3;
+    }
+    .edge-hit {
+      fill: none;
+      stroke: transparent;
+      stroke-width: 16;
+      cursor: pointer;
+    }
+    .element-layer, .label-layer, .context-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+    }
+    .label-layer { pointer-events: none; z-index: 3; }
+    .context-layer { pointer-events: none; z-index: 4; }
+
+    .edge-label {
+      position: absolute;
+      max-width: 180px;
+      min-height: 24px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 7px;
+      border: 1px solid #cfd9e6;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .96);
+      color: #3c4a5d;
+      font-size: 12px;
+      line-height: 1.3;
+      box-shadow: 0 3px 10px rgba(31, 42, 55, .08);
+      pointer-events: auto;
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .edge-label.is-branch {
+      border-color: #d6ccfa;
+      color: var(--purple);
+      background: #fbfaff;
+    }
+    .edge-label.is-selected {
+      border-color: var(--blue);
+      color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(21, 103, 211, .14);
+    }
+    .edge-label svg { width: 13px; height: 13px; flex: 0 0 auto; }
+
+    .bpmn-element {
+      position: absolute;
+      z-index: 2;
+      user-select: none;
+      cursor: grab;
+    }
+    .bpmn-element:active { cursor: grabbing; }
+    .task-card {
+      width: 100%;
+      height: 100%;
+      border: 1.5px solid #93a1b3;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 6px 18px rgba(31, 42, 55, .1);
+      padding: 9px 10px;
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      align-items: start;
+      gap: 8px;
+    }
+    .task-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+    .task-icon svg { width: 16px; height: 16px; }
+    .task-title {
+      min-width: 0;
+      display: grid;
+      gap: 3px;
+    }
+    .task-title strong {
+      display: block;
+      line-height: 1.3;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .task-title span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .type-cc .task-icon { color: var(--green); background: var(--green-soft); }
+    .type-system .task-icon { color: var(--orange); background: var(--orange-soft); }
+
+    .event-shape {
+      width: 100%;
+      height: 100%;
+      border: 2px solid #425166;
+      border-radius: 50%;
+      background: #fff;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 4px 14px rgba(31, 42, 55, .1);
+    }
+    .type-end .event-shape {
+      border-width: 4px;
+    }
+    .event-shape svg { width: 18px; height: 18px; color: #425166; }
+    .event-label {
+      position: absolute;
+      left: 50%;
+      top: calc(100% + 6px);
+      transform: translateX(-50%);
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .gateway-shell {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      position: relative;
+    }
+    .gateway-shape {
+      width: 58px;
+      height: 58px;
+      border: 2px solid #7b5ed7;
+      background: #fff;
+      transform: rotate(45deg);
+      display: grid;
+      place-items: center;
+      box-shadow: 0 4px 14px rgba(31, 42, 55, .1);
+    }
+    .gateway-shape span {
+      transform: rotate(-45deg);
+      color: var(--purple);
+      font-size: 24px;
+      line-height: 1;
+      font-weight: 700;
+    }
+    .gateway-title {
+      position: absolute;
+      top: calc(100% + 5px);
+      left: 50%;
+      transform: translateX(-50%);
+      min-width: 130px;
+      max-width: 180px;
+      text-align: center;
+      font-size: 12px;
+      color: #3e4b5c;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .bpmn-element.is-selected .task-card,
+    .bpmn-element.is-selected .event-shape,
+    .bpmn-element.is-selected .gateway-shape {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(21, 103, 211, .15), 0 8px 20px rgba(31, 42, 55, .12);
+    }
+
+    .context-pad {
+      position: absolute;
+      width: 40px;
+      display: grid;
+      gap: 6px;
+      pointer-events: auto;
+    }
+    .context-pad button {
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--blue);
+      display: grid;
+      place-items: center;
+      box-shadow: 0 5px 14px rgba(31, 42, 55, .12);
+    }
+    .context-pad button:hover {
+      border-color: var(--blue);
+      background: var(--blue-soft);
+    }
+    .context-pad button.is-danger {
+      color: var(--red);
+    }
+    .context-pad svg { width: 16px; height: 16px; }
+
+    .props-panel {
+      max-height: calc(100vh - 82px);
+      overflow: auto;
+    }
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-soft);
+      margin-bottom: 12px;
+    }
+    .tabs button {
+      min-height: 30px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+    }
+    .tabs button.is-active {
+      background: #fff;
+      color: var(--blue);
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(31, 42, 55, .08);
+    }
+    .field {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+    }
+    .field + .field { margin-top: 10px; }
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .field input, .field select, .field textarea {
+      width: 100%;
+      min-height: 34px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      padding: 0 10px;
+      outline: none;
+    }
+    .field textarea {
+      min-height: 74px;
+      padding: 9px 10px;
+      line-height: 1.55;
+      resize: vertical;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(21, 103, 211, .12);
+    }
+    .split-fields {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .type-fields {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      display: grid;
+      gap: 10px;
+    }
+    .branch-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .branch-row {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-soft);
+      padding: 8px;
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+    }
+    .branch-index {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: var(--purple);
+      background: var(--purple-soft);
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .branch-row strong {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .branch-row span {
+      color: var(--muted);
+      font-size: 12px;
+      display: block;
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .check-list {
+      display: grid;
+      gap: 8px;
+    }
+    .check-row {
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-soft);
+      padding: 8px 9px;
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+    }
+    .check-row svg {
+      width: 18px;
+      height: 18px;
+      margin-top: 1px;
+    }
+    .check-row.is-ok svg { color: var(--green); }
+    .check-row.is-warn svg { color: var(--orange); }
+    .check-row strong {
+      display: block;
+      margin-bottom: 2px;
+      line-height: 1.35;
+    }
+    .check-row span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .empty {
+      min-height: 120px;
+      border: 1px dashed var(--line-strong);
+      border-radius: 8px;
+      background: var(--surface-soft);
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+      text-align: center;
+      line-height: 1.6;
+      padding: 16px;
+    }
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      min-width: 260px;
+      max-width: min(420px, calc(100vw - 36px));
+      border-radius: 8px;
+      background: #24313f;
+      color: #fff;
+      padding: 12px 14px;
+      line-height: 1.55;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, .2);
+      display: none;
+      z-index: 80;
+    }
+    .toast.is-visible { display: block; }
+
+    @media (max-width: 1220px) {
+      .modeler {
+        grid-template-columns: 1fr;
+      }
+      .props-panel {
+        grid-column: 1 / -1;
+        max-height: none;
+      }
+    }
+    @media (max-width: 820px) {
+      .topbar {
+        height: auto;
+        min-height: 58px;
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 10px 12px;
+      }
+      .brand strong, .brand span { max-width: calc(100vw - 80px); }
+      .modeler { grid-template-columns: 1fr; padding: 10px; }
+      .canvas-panel { min-height: 620px; }
+      .canvas-meta { max-width: 100%; }
+      .split-fields { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark"><i data-lucide="workflow"></i></span>
+      <div>
+        <strong id="topTitle">流程配置</strong>
+        <span id="topSubtitle">审批场景</span>
+      </div>
+    </div>
+    <div class="actions">
+      <a class="btn" href="./审批场景管理.html"><i data-lucide="arrow-left"></i>返回场景</a>
+      <button class="btn" type="button" id="saveFlow"><i data-lucide="save"></i>保存</button>
+      <button class="btn btn-primary" type="button" id="publishFlow"><i data-lucide="check-circle-2"></i>确认启用</button>
+    </div>
+  </header>
+
+  <main class="modeler" id="modeler">
+    <section class="canvas-panel">
+      <div class="canvas-toolbar">
+        <div class="canvas-meta">
+          <strong id="sceneName">审批场景</strong>
+          <span id="sceneDesc">配置当前场景的审批流转节点、条件分支、抄送规则和安全动作。</span>
+        </div>
+        <div class="canvas-stats">
+          <span class="status status-blue">节点 <strong id="nodeCount">0</strong></span>
+          <span class="status status-purple">分支 <strong id="branchCount">0</strong></span>
+          <span class="status status-green">状态 <strong id="flowStatus">草稿</strong></span>
+        </div>
+        <div class="toolbar-tools">
+          <button class="tool-chip" type="button" data-tool="approval"><i data-lucide="user-check"></i>审批任务</button>
+          <button class="tool-chip" type="button" data-tool="condition"><i data-lucide="diamond"></i>条件网关</button>
+          <button class="tool-chip" type="button" data-tool="cc"><i data-lucide="send"></i>抄送任务</button>
+          <button class="tool-chip" type="button" data-tool="system"><i data-lucide="shield-check"></i>安全动作</button>
+        </div>
+        <div class="toolbar-group">
+          <button class="icon-btn" type="button" id="fitView" title="适配画布"><i data-lucide="scan"></i></button>
+          <button class="icon-btn" type="button" id="zoomOut" title="缩小"><i data-lucide="minus"></i></button>
+          <span class="zoom-value" id="zoomValue">100%</span>
+          <button class="icon-btn" type="button" id="zoomIn" title="放大"><i data-lucide="plus"></i></button>
+        </div>
+        <div class="toolbar-group">
+          <button class="btn" type="button" id="autoLayout"><i data-lucide="layout-grid"></i>自动排布</button>
+          <button class="btn btn-danger" type="button" id="deleteSelected"><i data-lucide="trash-2"></i>删除</button>
+        </div>
+      </div>
+      <div class="canvas-scroll" id="canvasScroll">
+        <div class="zoom-shell" id="zoomShell">
+          <div class="diagram" id="diagram">
+            <svg class="connector-layer" id="connectorLayer"></svg>
+            <div class="element-layer" id="elementLayer"></div>
+            <div class="label-layer" id="labelLayer"></div>
+            <div class="context-layer" id="contextLayer"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="props-panel">
+      <div class="panel-head">
+        <div class="panel-title"><i data-lucide="sliders-horizontal"></i>属性</div>
+        <span class="status status-blue" id="selectedType">审批任务</span>
+      </div>
+      <div class="panel-body">
+        <div class="tabs">
+          <button class="is-active" type="button" data-panel="element">节点</button>
+          <button type="button" data-panel="branch">分支</button>
+          <button type="button" data-panel="check">校验</button>
+        </div>
+
+        <section id="elementPanel">
+          <div class="field">
+            <label for="elementName">名称</label>
+            <input id="elementName" />
+          </div>
+          <div class="field">
+            <label for="elementDesc">说明</label>
+            <textarea id="elementDesc"></textarea>
+          </div>
+
+          <div class="type-fields" id="approvalFields">
+            <div class="split-fields">
+              <div class="field">
+                <label for="approverType">审批人类型</label>
+                <select id="approverType">
+                  <option>指定角色</option>
+                  <option>指定成员</option>
+                  <option>直属上级</option>
+                  <option>发起人自选</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="approvalMode">审批方式</label>
+                <select id="approvalMode">
+                  <option>或签</option>
+                  <option>会签</option>
+                  <option>依次审批</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="assignee">审批对象</label>
+              <input id="assignee" />
+            </div>
+            <div class="split-fields">
+              <div class="field">
+                <label for="timeoutHours">超时小时</label>
+                <input id="timeoutHours" type="number" min="0" />
+              </div>
+              <div class="field">
+                <label for="timeoutAction">超时动作</label>
+                <select id="timeoutAction">
+                  <option>提醒</option>
+                  <option>自动通过</option>
+                  <option>自动驳回</option>
+                  <option>升级处理</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="type-fields" id="ccFields">
+            <div class="field">
+              <label for="ccRange">抄送范围</label>
+              <input id="ccRange" />
+            </div>
+            <div class="field">
+              <label for="ccTiming">抄送时机</label>
+              <select id="ccTiming">
+                <option>流程结束后</option>
+                <option>节点通过后</option>
+                <option>流程发起时</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="type-fields" id="systemFields">
+            <div class="field">
+              <label for="systemAction">安全动作</label>
+              <select id="systemAction">
+                <option>记录操作日志</option>
+                <option>触发异常告警</option>
+                <option>删除数据</option>
+                <option>匿名化处理</option>
+                <option>生成备案材料</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="systemTarget">处理对象</label>
+              <input id="systemTarget" />
+            </div>
+          </div>
+        </section>
+
+        <section id="branchPanel" style="display:none;">
+          <div id="branchEditor">
+            <div class="field">
+              <label for="branchName">分支名称</label>
+              <input id="branchName" />
+            </div>
+            <div class="field">
+              <label for="branchExpression">条件表达</label>
+              <textarea id="branchExpression"></textarea>
+            </div>
+            <div class="split-fields">
+              <div class="field">
+                <label for="branchPriority">优先级</label>
+                <input id="branchPriority" type="number" min="1" />
+              </div>
+              <div class="field">
+                <label for="branchMode">判断方式</label>
+                <select id="branchMode">
+                  <option>如果</option>
+                  <option>否则</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="type-fields">
+            <div class="actions">
+              <button class="btn" type="button" id="addBranch"><i data-lucide="git-branch-plus"></i>新增分支</button>
+              <button class="btn" type="button" id="addNestedGateway"><i data-lucide="diamond-plus"></i>嵌套条件</button>
+            </div>
+            <div class="branch-list" id="branchList"></div>
+          </div>
+        </section>
+
+        <section id="checkPanel" style="display:none;">
+          <div class="check-list" id="checkList"></div>
+        </section>
+      </div>
+    </aside>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORAGE_KEY = "approval.flow.scenes.v3";
+    const params = new URLSearchParams(window.location.search);
+    const sceneId = params.get("scene");
+    const typeMeta = {
+      start: { label: "开始事件", icon: "play", w: 54, h: 54 },
+      end: { label: "结束事件", icon: "circle-stop", w: 56, h: 56 },
+      approval: { label: "审批任务", icon: "user-check", w: 174, h: 88 },
+      cc: { label: "抄送任务", icon: "send", w: 174, h: 82 },
+      system: { label: "安全动作", icon: "shield-check", w: 174, h: 82 },
+      condition: { label: "条件网关", icon: "diamond", w: 74, h: 74 }
+    };
+    let scenes = loadScenes();
+    let scene = findScene(sceneId);
+    let model = normalizeModel(scene.flow);
+    let selected = { type: "element", id: firstEditableElementId() };
+    let activePanel = "element";
+    let zoom = 0.65;
+    let toastTimer = null;
+    let dragState = null;
+
+    function loadScenes() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function saveScenes() {
+      if (!scenes.some(item => item.id === scene.id)) scenes.unshift(scene);
+      scene.flow = scene.flow || {};
+      scene.flow.model = model;
+      scene.flow.status = model.status;
+      scene.updatedAt = new Date().toISOString();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(scenes));
+    }
+
+    function findScene(id) {
+      const found = scenes.find(item => item.id === id);
+      if (found) return found;
+      return {
+        id: "scene-default",
+        name: "人脸信息存储数量阈值预警",
+        desc: "当人脸信息存储数量接近或达到 10 万人时，触发分级审批、风险复核和备案材料辅助生成。",
+        status: "草稿",
+        flow: {}
+      };
+    }
+
+    function normalizeModel(flow) {
+      if (flow?.model?.elements?.length && flow?.model?.edges?.length) {
+        return {
+          status: flow.model.status || flow.status || "草稿",
+          elements: flow.model.elements.map(normalizeElement),
+          edges: flow.model.edges.map(normalizeEdge)
+        };
+      }
+      return defaultModel(flow?.status || "草稿");
+    }
+
+    function normalizeElement(item) {
+      const meta = typeMeta[item.type] || typeMeta.approval;
+      return {
+        id: item.id || uid("node"),
+        type: item.type || "approval",
+        title: item.title || meta.label,
+        desc: item.desc || "",
+        x: Number(item.x ?? 120),
+        y: Number(item.y ?? 120),
+        w: Number(item.w ?? meta.w),
+        h: Number(item.h ?? meta.h),
+        approverType: item.approverType || "指定角色",
+        approvalMode: item.approvalMode || "或签",
+        assignee: item.assignee || "",
+        timeoutHours: Number(item.timeoutHours ?? 24),
+        timeoutAction: item.timeoutAction || "提醒",
+        ccRange: item.ccRange || "",
+        ccTiming: item.ccTiming || "流程结束后",
+        systemAction: item.systemAction || "记录操作日志",
+        systemTarget: item.systemTarget || ""
+      };
+    }
+
+    function normalizeEdge(item) {
+      return {
+        id: item.id || uid("edge"),
+        source: item.source,
+        target: item.target,
+        label: item.label || "",
+        expression: item.expression || "",
+        priority: Number(item.priority ?? 1),
+        mode: item.mode || (item.label === "否则" ? "否则" : "如果"),
+        kind: item.kind || "sequence"
+      };
+    }
+
+    function defaultModel(status = "草稿") {
+      return {
+        status,
+        elements: [
+          element("start", "start", "开始", 80, 292, { desc: "流程发起" }),
+          element("approval", "approval-business", "业务负责人审批", 190, 274, {
+            desc: "确认业务必要性和处理规则",
+            assignee: "业务负责人",
+            approverType: "指定角色",
+            approvalMode: "或签",
+            timeoutHours: 24
+          }),
+          element("condition", "gateway-risk", "风险条件判断", 430, 282, {
+            desc: "按存储规模、处理方式和外部提供情况判断"
+          }),
+          element("approval", "approval-security", "安全管理员复核", 610, 126, {
+            desc: "核验安全保护措施、访问控制和异常告警配置",
+            assignee: "安全管理员",
+            timeoutHours: 12
+          }),
+          element("condition", "gateway-image", "二级条件判断", 846, 132, {
+            desc: "判断是否包含原始人脸图像"
+          }),
+          element("approval", "approval-compliance", "合规负责人审批", 1042, 46, {
+            desc: "确认备案、备案变更或注销材料",
+            assignee: "合规负责人",
+            approvalMode: "会签",
+            timeoutHours: 24
+          }),
+          element("cc", "cc-auditor", "抄送审计员", 1042, 232, {
+            desc: "同步处理规则记录和安全保护措施记录",
+            ccRange: "审计员、数据安全专员"
+          }),
+          element("approval", "approval-normal", "合规管理员审批", 610, 410, {
+            desc: "确认常规备案材料和操作日志留存",
+            assignee: "合规管理员",
+            timeoutHours: 24
+          }),
+          element("system", "system-report", "生成材料与日志", 1282, 226, {
+            desc: "生成备案辅助材料并记录操作日志",
+            systemAction: "生成备案材料",
+            systemTarget: "备案材料、操作日志"
+          }),
+          element("end", "end", "结束", 1510, 292, { desc: "流程结束" })
+        ],
+        edges: [
+          edge("start", "approval-business"),
+          edge("approval-business", "gateway-risk"),
+          edge("gateway-risk", "approval-security", "高风险", "存储数量 >= 100000 或涉及外部提供", 1, "如果", "branch"),
+          edge("approval-security", "gateway-image"),
+          edge("gateway-image", "approval-compliance", "包含原始图像", "处理对象包含原始人脸图像", 1, "如果", "branch"),
+          edge("gateway-image", "cc-auditor", "否则", "其他情况", 2, "否则", "branch"),
+          edge("approval-compliance", "system-report"),
+          edge("cc-auditor", "system-report"),
+          edge("gateway-risk", "approval-normal", "普通风险", "存储数量 < 100000 且仅内部使用", 2, "如果", "branch"),
+          edge("approval-normal", "system-report"),
+          edge("system-report", "end")
+        ]
+      };
+    }
+
+    function element(type, id, title, x, y, overrides = {}) {
+      const meta = typeMeta[type];
+      return normalizeElement({ id, type, title, x, y, w: meta.w, h: meta.h, ...overrides });
+    }
+
+    function edge(source, target, label = "", expression = "", priority = 1, mode = "如果", kind = "sequence") {
+      return normalizeEdge({ id: uid("edge"), source, target, label, expression, priority, mode, kind });
+    }
+
+    function uid(prefix) {
+      return `${prefix}-${Math.random().toString(36).slice(2, 8)}-${Date.now().toString(36).slice(-4)}`;
+    }
+
+    function firstEditableElementId() {
+      return model.elements.find(item => item.type !== "start" && item.type !== "end")?.id || model.elements[0]?.id;
+    }
+
+    function selectedElement() {
+      return selected.type === "element" ? model.elements.find(item => item.id === selected.id) : null;
+    }
+
+    function selectedEdge() {
+      return selected.type === "edge" ? model.edges.find(item => item.id === selected.id) : null;
+    }
+
+    function elementById(id) {
+      return model.elements.find(item => item.id === id);
+    }
+
+    function outgoing(id) {
+      return model.edges.filter(item => item.source === id).sort((a, b) => a.priority - b.priority);
+    }
+
+    function incoming(id) {
+      return model.edges.filter(item => item.target === id);
+    }
+
+    function branchEdgesForGateway(gatewayId) {
+      return outgoing(gatewayId).filter(item => item.kind === "branch").sort((a, b) => a.priority - b.priority);
+    }
+
+    function markDraft() {
+      if (model.status === "已启用") model.status = "草稿";
+      renderHeader();
+    }
+
+    function renderAll() {
+      renderHeader();
+      renderCanvas();
+      renderProperties();
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function renderHeader() {
+      document.getElementById("topTitle").textContent = "流程配置";
+      document.getElementById("topSubtitle").textContent = scene.name;
+      document.getElementById("sceneName").textContent = scene.name;
+      document.getElementById("sceneDesc").textContent = scene.desc || "配置当前场景的审批流转节点、条件分支、抄送规则和安全动作。";
+      document.getElementById("nodeCount").textContent = model.elements.length;
+      document.getElementById("branchCount").textContent = model.edges.filter(item => item.kind === "branch").length;
+      document.getElementById("flowStatus").textContent = model.status;
+      document.getElementById("zoomValue").textContent = `${Math.round(zoom * 100)}%`;
+    }
+
+    function renderCanvas() {
+      const size = diagramSize();
+      const diagram = document.getElementById("diagram");
+      const shell = document.getElementById("zoomShell");
+      diagram.style.width = `${size.width}px`;
+      diagram.style.height = `${size.height}px`;
+      diagram.style.transform = `scale(${zoom})`;
+      shell.style.width = `${size.width * zoom}px`;
+      shell.style.height = `${size.height * zoom}px`;
+
+      renderEdges(size);
+      renderElements();
+      renderEdgeLabels();
+      renderContextPad();
+    }
+
+    function diagramSize() {
+      const maxX = Math.max(...model.elements.map(item => item.x + item.w), 960);
+      const maxY = Math.max(...model.elements.map(item => item.y + item.h), 560);
+      return { width: maxX + 180, height: maxY + 160 };
+    }
+
+    function renderEdges(size) {
+      const svg = document.getElementById("connectorLayer");
+      svg.setAttribute("width", size.width);
+      svg.setAttribute("height", size.height);
+      svg.setAttribute("viewBox", `0 0 ${size.width} ${size.height}`);
+      svg.innerHTML = `
+        <defs>
+          <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+            <path d="M2,2 L10,6 L2,10 Z" fill="#7f8fa4"></path>
+          </marker>
+          <marker id="arrow-selected" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+            <path d="M2,2 L10,6 L2,10 Z" fill="#1567d3"></path>
+          </marker>
+        </defs>
+        ${model.edges.map(item => {
+          const d = pathForEdge(item);
+          const classes = ["edge-path", item.kind === "branch" ? "is-branch" : "", selected.type === "edge" && selected.id === item.id ? "is-selected" : ""].join(" ");
+          const marker = selected.type === "edge" && selected.id === item.id ? "url(#arrow-selected)" : "url(#arrow)";
+          return `
+            <path class="${classes}" d="${d}" marker-end="${marker}"></path>
+            <path class="edge-hit" d="${d}" data-edge-id="${item.id}"></path>
+          `;
+        }).join("")}
+      `;
+    }
+
+    function pathForEdge(item) {
+      const source = elementById(item.source);
+      const target = elementById(item.target);
+      if (!source || !target) return "";
+      const start = anchorPoint(source, target, "source");
+      const end = anchorPoint(target, source, "target");
+      const midX = Math.round((start.x + end.x) / 2);
+      if (Math.abs(start.y - end.y) < 8) {
+        return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
+      }
+      return `M ${start.x} ${start.y} L ${midX} ${start.y} L ${midX} ${end.y} L ${end.x} ${end.y}`;
+    }
+
+    function anchorPoint(current, other, role) {
+      const cx = current.x + current.w / 2;
+      const cy = current.y + current.h / 2;
+      const ox = other.x + other.w / 2;
+      const oy = other.y + other.h / 2;
+      if (Math.abs(ox - cx) >= Math.abs(oy - cy)) {
+        return role === "source"
+          ? { x: ox >= cx ? current.x + current.w : current.x, y: cy }
+          : { x: ox >= cx ? current.x : current.x + current.w, y: cy };
+      }
+      return role === "source"
+        ? { x: cx, y: oy >= cy ? current.y + current.h : current.y }
+        : { x: cx, y: oy >= cy ? current.y : current.y + current.h };
+    }
+
+    function labelPosition(item) {
+      const source = elementById(item.source);
+      const target = elementById(item.target);
+      if (!source || !target) return { x: 0, y: 0 };
+      const start = anchorPoint(source, target, "source");
+      const end = anchorPoint(target, source, "target");
+      return {
+        x: Math.round((start.x + end.x) / 2 - 34),
+        y: Math.round((start.y + end.y) / 2 - 16)
+      };
+    }
+
+    function renderElements() {
+      document.getElementById("elementLayer").innerHTML = model.elements.map(item => {
+        const classes = ["bpmn-element", `type-${item.type}`, selected.type === "element" && selected.id === item.id ? "is-selected" : ""].join(" ");
+        return `
+          <div class="${classes}" data-element-id="${item.id}" style="left:${item.x}px;top:${item.y}px;width:${item.w}px;height:${item.h}px;">
+            ${elementMarkup(item)}
+          </div>
+        `;
+      }).join("");
+    }
+
+    function elementMarkup(item) {
+      const meta = typeMeta[item.type] || typeMeta.approval;
+      if (item.type === "start" || item.type === "end") {
+        return `
+          <div class="event-shape"><i data-lucide="${meta.icon}"></i></div>
+          <div class="event-label">${escapeHtml(item.title)}</div>
+        `;
+      }
+      if (item.type === "condition") {
+        return `
+          <div class="gateway-shell">
+            <div class="gateway-shape"><span>×</span></div>
+            <div class="gateway-title">${escapeHtml(item.title)}</div>
+          </div>
+        `;
+      }
+      return `
+        <div class="task-card">
+          <span class="task-icon"><i data-lucide="${meta.icon}"></i></span>
+          <span class="task-title">
+            <strong>${escapeHtml(item.title)}</strong>
+            <span>${escapeHtml(taskSubtitle(item))}</span>
+          </span>
+        </div>
+      `;
+    }
+
+    function taskSubtitle(item) {
+      if (item.type === "approval") return `${item.approverType}：${item.assignee || "未配置"}`;
+      if (item.type === "cc") return item.ccRange || "未配置抄送范围";
+      if (item.type === "system") return item.systemAction || "安全动作";
+      return typeMeta[item.type]?.label || "节点";
+    }
+
+    function renderEdgeLabels() {
+      document.getElementById("labelLayer").innerHTML = model.edges.filter(item => item.label || item.kind === "branch").map(item => {
+        const pos = labelPosition(item);
+        const text = item.kind === "branch" ? `${item.mode || "如果"} ${item.label || "条件"}` : item.label;
+        const classes = ["edge-label", item.kind === "branch" ? "is-branch" : "", selected.type === "edge" && selected.id === item.id ? "is-selected" : ""].join(" ");
+        return `
+          <button class="${classes}" type="button" data-edge-id="${item.id}" style="left:${pos.x}px;top:${pos.y}px;" title="${escapeHtml(item.expression || text)}">
+            <i data-lucide="${item.mode === "否则" ? "corner-down-right" : "route"}"></i>${escapeHtml(text)}
+          </button>
+        `;
+      }).join("");
+    }
+
+    function renderContextPad() {
+      const item = selectedElement();
+      if (!item || item.type === "end") {
+        document.getElementById("contextLayer").innerHTML = "";
+        return;
+      }
+      document.getElementById("contextLayer").innerHTML = `
+        <div class="context-pad" style="left:${item.x + item.w + 10}px;top:${Math.max(12, item.y - 4)}px;">
+          <button type="button" data-context-add="approval" title="添加审批任务"><i data-lucide="user-check"></i></button>
+          <button type="button" data-context-add="condition" title="添加条件网关"><i data-lucide="diamond"></i></button>
+          <button type="button" data-context-add="cc" title="添加抄送任务"><i data-lucide="send"></i></button>
+          <button type="button" data-context-add="system" title="添加安全动作"><i data-lucide="shield-check"></i></button>
+          <button class="is-danger" type="button" data-context-delete title="删除"><i data-lucide="trash-2"></i></button>
+        </div>
+      `;
+    }
+
+    function renderProperties() {
+      document.querySelectorAll("[data-panel]").forEach(button => {
+        button.classList.toggle("is-active", button.dataset.panel === activePanel);
+      });
+      document.getElementById("elementPanel").style.display = activePanel === "element" ? "" : "none";
+      document.getElementById("branchPanel").style.display = activePanel === "branch" ? "" : "none";
+      document.getElementById("checkPanel").style.display = activePanel === "check" ? "" : "none";
+
+      renderElementProperties();
+      renderBranchProperties();
+      renderChecks();
+    }
+
+    function renderElementProperties() {
+      const item = selectedElement() || elementById(firstEditableElementId());
+      const meta = typeMeta[item?.type] || typeMeta.approval;
+      document.getElementById("selectedType").textContent = selected.type === "edge" ? "分支连线" : meta.label;
+      if (!item) return;
+      document.getElementById("elementName").value = item.title || "";
+      document.getElementById("elementDesc").value = item.desc || "";
+      document.getElementById("approverType").value = item.approverType || "指定角色";
+      document.getElementById("approvalMode").value = item.approvalMode || "或签";
+      document.getElementById("assignee").value = item.assignee || "";
+      document.getElementById("timeoutHours").value = item.timeoutHours ?? 0;
+      document.getElementById("timeoutAction").value = item.timeoutAction || "提醒";
+      document.getElementById("ccRange").value = item.ccRange || "";
+      document.getElementById("ccTiming").value = item.ccTiming || "流程结束后";
+      document.getElementById("systemAction").value = item.systemAction || "记录操作日志";
+      document.getElementById("systemTarget").value = item.systemTarget || "";
+
+      document.getElementById("approvalFields").style.display = item.type === "approval" ? "grid" : "none";
+      document.getElementById("ccFields").style.display = item.type === "cc" ? "grid" : "none";
+      document.getElementById("systemFields").style.display = item.type === "system" ? "grid" : "none";
+    }
+
+    function renderBranchProperties() {
+      const edgeItem = selectedEdge();
+      const selectedGateway = selectedElement()?.type === "condition" ? selectedElement() : null;
+      const gateway = edgeItem ? elementById(edgeItem.source) : selectedGateway;
+      const branchEdge = edgeItem?.kind === "branch" ? edgeItem : branchEdgesForGateway(gateway?.id).find(Boolean);
+      const editor = document.getElementById("branchEditor");
+      if (!gateway || gateway.type !== "condition" || !branchEdge) {
+        editor.innerHTML = `<div class="empty">请选择条件网关或分支连线</div>`;
+      } else {
+        editor.innerHTML = `
+          <div class="field">
+            <label for="branchName">分支名称</label>
+            <input id="branchName" value="${escapeAttribute(branchEdge.label || "")}" />
+          </div>
+          <div class="field">
+            <label for="branchExpression">条件表达</label>
+            <textarea id="branchExpression">${escapeHtml(branchEdge.expression || "")}</textarea>
+          </div>
+          <div class="split-fields">
+            <div class="field">
+              <label for="branchPriority">优先级</label>
+              <input id="branchPriority" type="number" min="1" value="${branchEdge.priority || 1}" />
+            </div>
+            <div class="field">
+              <label for="branchMode">判断方式</label>
+              <select id="branchMode">
+                <option ${branchEdge.mode !== "否则" ? "selected" : ""}>如果</option>
+                <option ${branchEdge.mode === "否则" ? "selected" : ""}>否则</option>
+              </select>
+            </div>
+          </div>
+        `;
+        bindBranchEditor(branchEdge.id);
+      }
+
+      const targetGatewayId = gateway?.type === "condition" ? gateway.id : selectedElement()?.id;
+      const list = document.getElementById("branchList");
+      const rows = targetGatewayId ? branchEdgesForGateway(targetGatewayId) : [];
+      list.innerHTML = rows.length ? rows.map((item, index) => `
+        <button class="branch-row" type="button" data-select-edge="${item.id}">
+          <span class="branch-index">${index + 1}</span>
+          <span><strong>${escapeHtml(item.mode || "如果")} ${escapeHtml(item.label || "条件")}</strong><span>${escapeHtml(item.expression || "未配置条件")}</span></span>
+          <i data-lucide="chevron-right"></i>
+        </button>
+      `).join("") : `<div class="empty">暂无条件分支</div>`;
+    }
+
+    function renderChecks() {
+      const checks = buildChecks();
+      document.getElementById("checkList").innerHTML = checks.map(item => `
+        <div class="check-row ${item.ok ? "is-ok" : "is-warn"}">
+          <i data-lucide="${item.ok ? "check-circle-2" : "triangle-alert"}"></i>
+          <span><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.detail)}</span></span>
+        </div>
+      `).join("");
+    }
+
+    function buildChecks() {
+      const startCount = model.elements.filter(item => item.type === "start").length;
+      const endCount = model.elements.filter(item => item.type === "end").length;
+      const emptyApprovers = model.elements.filter(item => item.type === "approval" && !item.assignee.trim()).length;
+      const badGateways = model.elements.filter(item => item.type === "condition" && branchEdgesForGateway(item.id).length < 2).length;
+      const emptyBranch = model.edges.filter(item => item.kind === "branch" && item.mode !== "否则" && !item.expression.trim()).length;
+      return [
+        { ok: startCount === 1 && endCount === 1, title: "开始和结束事件", detail: `开始 ${startCount} 个，结束 ${endCount} 个` },
+        { ok: emptyApprovers === 0, title: "审批人配置", detail: emptyApprovers ? `${emptyApprovers} 个审批任务未配置审批对象` : "审批任务均已配置审批对象" },
+        { ok: badGateways === 0, title: "条件网关", detail: badGateways ? `${badGateways} 个条件网关少于 2 条分支` : "条件网关均具备有效分支" },
+        { ok: emptyBranch === 0, title: "条件表达", detail: emptyBranch ? `${emptyBranch} 条分支未填写条件表达` : "条件分支表达完整" }
+      ];
+    }
+
+    function bindBranchEditor(edgeId) {
+      const ids = ["branchName", "branchExpression", "branchPriority", "branchMode"];
+      ids.forEach(id => {
+        const input = document.getElementById(id);
+        if (!input) return;
+        input.addEventListener("input", () => updateBranchFields(edgeId));
+        input.addEventListener("change", () => updateBranchFields(edgeId));
+      });
+    }
+
+    function updateElementFields() {
+      const item = selectedElement();
+      if (!item) return;
+      item.title = document.getElementById("elementName").value;
+      item.desc = document.getElementById("elementDesc").value;
+      item.approverType = document.getElementById("approverType").value;
+      item.approvalMode = document.getElementById("approvalMode").value;
+      item.assignee = document.getElementById("assignee").value;
+      item.timeoutHours = Number(document.getElementById("timeoutHours").value || 0);
+      item.timeoutAction = document.getElementById("timeoutAction").value;
+      item.ccRange = document.getElementById("ccRange").value;
+      item.ccTiming = document.getElementById("ccTiming").value;
+      item.systemAction = document.getElementById("systemAction").value;
+      item.systemTarget = document.getElementById("systemTarget").value;
+      markDraft();
+      renderCanvas();
+      renderChecks();
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function updateBranchFields(edgeId) {
+      const edgeItem = model.edges.find(item => item.id === edgeId);
+      if (!edgeItem) return;
+      edgeItem.label = document.getElementById("branchName").value;
+      edgeItem.expression = document.getElementById("branchExpression").value;
+      edgeItem.priority = Number(document.getElementById("branchPriority").value || 1);
+      edgeItem.mode = document.getElementById("branchMode").value;
+      markDraft();
+      renderCanvas();
+      renderBranchProperties();
+      renderChecks();
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function createElementByType(type, x, y, title) {
+      const meta = typeMeta[type] || typeMeta.approval;
+      const defaults = {
+        approval: { assignee: "待配置", approverType: "指定角色", approvalMode: "或签", timeoutHours: 24, timeoutAction: "提醒" },
+        cc: { ccRange: "待配置", ccTiming: "流程结束后" },
+        system: { systemAction: "记录操作日志", systemTarget: "当前审批实例" },
+        condition: { desc: "根据条件表达判断后续分支" }
+      };
+      return normalizeElement({
+        id: uid(type),
+        type,
+        title: title || meta.label,
+        x,
+        y,
+        w: meta.w,
+        h: meta.h,
+        ...(defaults[type] || {})
+      });
+    }
+
+    function appendElement(type) {
+      const source = selectedElement() || elementById(firstEditableElementId());
+      if (!source || source.type === "end") return showToast("结束事件后不能继续添加节点");
+      if (source.type === "condition") return addBranchTarget(source.id, type);
+      if (type === "condition") return insertGatewayAfter(source);
+      insertTaskAfter(source, type);
+    }
+
+    function insertTaskAfter(source, type) {
+      const out = outgoing(source.id)[0] || null;
+      const target = out ? elementById(out.target) : null;
+      const y = source.y + Math.max(0, (source.h - typeMeta[type].h) / 2);
+      const item = createElementByType(type, source.x + source.w + 150, y);
+      model.elements.push(item);
+      if (out) model.edges = model.edges.filter(edgeItem => edgeItem.id !== out.id);
+      model.edges.push(edge(source.id, item.id));
+      if (target) model.edges.push(edge(item.id, target.id));
+      selected = { type: "element", id: item.id };
+      activePanel = "element";
+      markDraft();
+      renderAll();
+      showToast("已添加节点");
+    }
+
+    function insertGatewayAfter(source) {
+      const out = outgoing(source.id)[0] || null;
+      const target = out ? elementById(out.target) : elementById("end");
+      const gateway = createElementByType("condition", source.x + source.w + 150, source.y + Math.max(0, (source.h - typeMeta.condition.h) / 2), "条件判断");
+      const yes = createElementByType("approval", gateway.x + 180, gateway.y - 116, "条件审批");
+      const no = createElementByType("cc", gateway.x + 180, gateway.y + 118, "否则抄送");
+      model.elements.push(gateway, yes, no);
+      if (out) model.edges = model.edges.filter(edgeItem => edgeItem.id !== out.id);
+      model.edges.push(edge(source.id, gateway.id));
+      model.edges.push(edge(gateway.id, yes.id, "条件1", "请配置条件表达", 1, "如果", "branch"));
+      model.edges.push(edge(gateway.id, no.id, "否则", "其他情况", 2, "否则", "branch"));
+      if (target) {
+        model.edges.push(edge(yes.id, target.id));
+        model.edges.push(edge(no.id, target.id));
+      }
+      selected = { type: "element", id: gateway.id };
+      activePanel = "branch";
+      markDraft();
+      renderAll();
+      showToast("已添加条件网关");
+    }
+
+    function addBranchTarget(gatewayId, type) {
+      const gateway = elementById(gatewayId);
+      if (!gateway) return;
+      if (type === "condition") return addNestedGateway(gatewayId);
+      const branchCount = branchEdgesForGateway(gatewayId).length;
+      const offset = (branchCount - 0.5) * 120;
+      const item = createElementByType(type, gateway.x + 190, gateway.y + offset);
+      model.elements.push(item);
+      model.edges.push(edge(gateway.id, item.id, `条件${branchCount + 1}`, "请配置条件表达", branchCount + 1, "如果", "branch"));
+      selected = { type: "element", id: item.id };
+      activePanel = "element";
+      markDraft();
+      renderAll();
+      showToast("已新增条件分支");
+    }
+
+    function addBranchToSelectedGateway() {
+      const gateway = gatewayForBranchAction();
+      if (!gateway) return showToast("请选择条件网关");
+      addBranchTarget(gateway.id, "approval");
+    }
+
+    function addNestedGatewayFromSelection() {
+      const gateway = gatewayForBranchAction();
+      if (!gateway) return showToast("请选择条件网关");
+      addNestedGateway(gateway.id);
+    }
+
+    function gatewayForBranchAction() {
+      const item = selectedElement();
+      if (item?.type === "condition") return item;
+      const edgeItem = selectedEdge();
+      if (edgeItem?.kind === "branch") return elementById(edgeItem.source);
+      return null;
+    }
+
+    function addNestedGateway(gatewayId) {
+      const gateway = elementById(gatewayId);
+      if (!gateway) return;
+      const branchCount = branchEdgesForGateway(gatewayId).length;
+      const nested = createElementByType("condition", gateway.x + 190, gateway.y + (branchCount - 0.5) * 130, "嵌套条件");
+      const yes = createElementByType("approval", nested.x + 180, nested.y - 92, "二级审批");
+      const no = createElementByType("cc", nested.x + 180, nested.y + 92, "否则抄送");
+      model.elements.push(nested, yes, no);
+      model.edges.push(edge(gateway.id, nested.id, `条件${branchCount + 1}`, "请配置条件表达", branchCount + 1, "如果", "branch"));
+      model.edges.push(edge(nested.id, yes.id, "条件1", "请配置条件表达", 1, "如果", "branch"));
+      model.edges.push(edge(nested.id, no.id, "否则", "其他情况", 2, "否则", "branch"));
+      selected = { type: "element", id: nested.id };
+      activePanel = "branch";
+      markDraft();
+      renderAll();
+      showToast("已添加嵌套条件");
+    }
+
+    function deleteSelectedItem() {
+      if (selected.type === "edge") {
+        const edgeItem = selectedEdge();
+        if (!edgeItem) return;
+        model.edges = model.edges.filter(item => item.id !== edgeItem.id);
+        selected = { type: "element", id: edgeItem.source };
+        activePanel = "element";
+        markDraft();
+        renderAll();
+        return showToast("连线已删除");
+      }
+      const item = selectedElement();
+      if (!item) return;
+      if (item.type === "start" || item.type === "end") return showToast("开始和结束事件不能删除");
+      const inEdges = incoming(item.id);
+      const outEdges = outgoing(item.id);
+      model.elements = model.elements.filter(current => current.id !== item.id);
+      model.edges = model.edges.filter(current => current.source !== item.id && current.target !== item.id);
+      if (inEdges.length === 1 && outEdges.length === 1 && item.type !== "condition") {
+        model.edges.push(edge(inEdges[0].source, outEdges[0].target, inEdges[0].label, inEdges[0].expression, inEdges[0].priority, inEdges[0].mode, inEdges[0].kind));
+      }
+      selected = { type: "element", id: inEdges[0]?.source || firstEditableElementId() };
+      activePanel = "element";
+      markDraft();
+      renderAll();
+      showToast("节点已删除");
+    }
+
+    function autoLayoutModel() {
+      const start = model.elements.find(item => item.type === "start") || model.elements[0];
+      const levels = new Map([[start.id, 0]]);
+      const queue = [start.id];
+      while (queue.length) {
+        const current = queue.shift();
+        const level = levels.get(current);
+        outgoing(current).forEach(edgeItem => {
+          if (!levels.has(edgeItem.target) || levels.get(edgeItem.target) < level + 1) {
+            levels.set(edgeItem.target, level + 1);
+            queue.push(edgeItem.target);
+          }
+        });
+      }
+      const grouped = new Map();
+      model.elements.forEach(item => {
+        const level = levels.get(item.id) ?? 0;
+        if (!grouped.has(level)) grouped.set(level, []);
+        grouped.get(level).push(item);
+      });
+      [...grouped.entries()].forEach(([level, items]) => {
+        const total = (items.length - 1) * 138;
+        items.forEach((item, index) => {
+          item.x = 80 + level * 220;
+          item.y = 300 - total / 2 + index * 138;
+        });
+      });
+      markDraft();
+      renderAll();
+      showToast("已自动排布");
+    }
+
+    function fitViewToCanvas() {
+      const scroll = document.getElementById("canvasScroll");
+      const size = diagramSize();
+      const xZoom = (scroll.clientWidth - 80) / size.width;
+      const yZoom = (scroll.clientHeight - 80) / size.height;
+      zoom = Math.max(0.45, Math.min(1, xZoom, yZoom));
+      renderAll();
+      scroll.scrollLeft = 0;
+      scroll.scrollTop = 0;
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("is-visible");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("is-visible"), 2200);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function escapeAttribute(value) {
+      return escapeHtml(value).replaceAll("\n", " ");
+    }
+
+    document.querySelectorAll("[data-tool]").forEach(button => {
+      button.addEventListener("click", () => appendElement(button.dataset.tool));
+    });
+
+    document.querySelectorAll("[data-panel]").forEach(button => {
+      button.addEventListener("click", () => {
+        activePanel = button.dataset.panel;
+        renderProperties();
+        if (window.lucide) window.lucide.createIcons();
+      });
+    });
+
+    ["elementName", "elementDesc", "approverType", "approvalMode", "assignee", "timeoutHours", "timeoutAction", "ccRange", "ccTiming", "systemAction", "systemTarget"].forEach(id => {
+      document.getElementById(id).addEventListener("input", updateElementFields);
+      document.getElementById(id).addEventListener("change", updateElementFields);
+    });
+
+    document.getElementById("elementLayer").addEventListener("pointerdown", event => {
+      const node = event.target.closest("[data-element-id]");
+      if (!node) return;
+      const item = elementById(node.dataset.elementId);
+      if (!item) return;
+      selected = { type: "element", id: item.id };
+      activePanel = "element";
+      dragState = {
+        id: item.id,
+        startX: event.clientX,
+        startY: event.clientY,
+        originX: item.x,
+        originY: item.y
+      };
+      renderAll();
+    });
+
+    window.addEventListener("pointermove", event => {
+      if (!dragState) return;
+      const item = elementById(dragState.id);
+      if (!item) return;
+      const dx = (event.clientX - dragState.startX) / zoom;
+      const dy = (event.clientY - dragState.startY) / zoom;
+      item.x = Math.max(20, Math.round((dragState.originX + dx) / 12) * 12);
+      item.y = Math.max(20, Math.round((dragState.originY + dy) / 12) * 12);
+      renderCanvas();
+      if (window.lucide) window.lucide.createIcons();
+    });
+
+    window.addEventListener("pointerup", () => {
+      if (dragState) {
+        dragState = null;
+        markDraft();
+      }
+    });
+
+    document.getElementById("connectorLayer").addEventListener("click", event => {
+      const path = event.target.closest("[data-edge-id]");
+      if (!path) return;
+      selected = { type: "edge", id: path.dataset.edgeId };
+      activePanel = "branch";
+      renderAll();
+    });
+
+    document.getElementById("labelLayer").addEventListener("click", event => {
+      const label = event.target.closest("[data-edge-id]");
+      if (!label) return;
+      selected = { type: "edge", id: label.dataset.edgeId };
+      activePanel = "branch";
+      renderAll();
+    });
+
+    document.getElementById("contextLayer").addEventListener("click", event => {
+      const add = event.target.closest("[data-context-add]");
+      if (add) return appendElement(add.dataset.contextAdd);
+      if (event.target.closest("[data-context-delete]")) return deleteSelectedItem();
+    });
+
+    document.getElementById("branchList").addEventListener("click", event => {
+      const row = event.target.closest("[data-select-edge]");
+      if (!row) return;
+      selected = { type: "edge", id: row.dataset.selectEdge };
+      activePanel = "branch";
+      renderAll();
+    });
+
+    document.getElementById("addBranch").addEventListener("click", addBranchToSelectedGateway);
+    document.getElementById("addNestedGateway").addEventListener("click", addNestedGatewayFromSelection);
+    document.getElementById("deleteSelected").addEventListener("click", deleteSelectedItem);
+    document.getElementById("autoLayout").addEventListener("click", autoLayoutModel);
+    document.getElementById("fitView").addEventListener("click", fitViewToCanvas);
+    document.getElementById("zoomIn").addEventListener("click", () => {
+      zoom = Math.min(1.4, Math.round((zoom + 0.1) * 10) / 10);
+      renderAll();
+    });
+    document.getElementById("zoomOut").addEventListener("click", () => {
+      zoom = Math.max(0.5, Math.round((zoom - 0.1) * 10) / 10);
+      renderAll();
+    });
+    document.getElementById("saveFlow").addEventListener("click", () => {
+      saveScenes();
+      showToast("流程配置已保存");
+    });
+    document.getElementById("publishFlow").addEventListener("click", () => {
+      model.status = "已启用";
+      saveScenes();
+      renderAll();
+      showToast("流程已确认启用");
+    });
+
+    renderAll();
+    window.addEventListener("DOMContentLoaded", () => {
+      if (window.lucide) window.lucide.createIcons();
+    });
+    window.addEventListener("load", () => {
+      if (window.lucide) window.lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
