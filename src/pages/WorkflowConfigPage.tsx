@@ -53,6 +53,7 @@ import {
   useEdgesState,
   useNodesState,
 } from "@xyflow/react";
+import WorkflowEdgeLine from "../components/WorkflowEdgeLine";
 import WorkflowNode from "../components/WorkflowNode";
 import { createEdge, createElement } from "../data/workflowFactory";
 import {
@@ -108,6 +109,7 @@ import type {
 const { Text } = Typography;
 
 const nodeTypes = { workflow: WorkflowNode };
+const edgeTypes = { workflow: WorkflowEdgeLine };
 
 const typeLabel: Record<WorkflowElementType, string> = {
   start: "开始事件",
@@ -253,37 +255,10 @@ function toFlowEdges(
     id: edge.id,
     source: edge.source,
     target: edge.target,
-    type: "smoothstep",
+    type: "workflow",
     className: `${edge.kind === "branch" ? "edge-branch" : "edge-sequence"} ${
       errorEdgeIds.has(edge.id) ? "edge-invalid" : warningEdgeIds.has(edge.id) ? "edge-warning" : ""
     }`,
-    label: formatWorkflowEdgeLabel(edge),
-    labelShowBg: true,
-    labelBgPadding: [8, 4],
-    labelBgBorderRadius: 12,
-    labelStyle: {
-      fill: errorEdgeIds.has(edge.id)
-        ? "#c9362e"
-        : warningEdgeIds.has(edge.id)
-          ? "#bd6b13"
-          : edge.kind === "branch"
-            ? "#5a43b4"
-            : "#3c4a5d",
-      fontWeight: edge.kind === "branch" ? 700 : 500,
-      fontSize: 12,
-    },
-    labelBgStyle: {
-      fill: "#ffffff",
-      fillOpacity: 0.96,
-      stroke: errorEdgeIds.has(edge.id)
-        ? "#f3b0aa"
-        : warningEdgeIds.has(edge.id)
-          ? "#f2c98a"
-          : edge.kind === "branch"
-            ? "#d6ccfa"
-            : "#d9e2ec",
-      strokeWidth: 1,
-    },
     markerEnd: {
       type: MarkerType.ArrowClosed,
       color: errorEdgeIds.has(edge.id)
@@ -309,8 +284,13 @@ function toFlowEdges(
     },
     selected: selection.kind === "edge" && selection.id === edge.id,
     interactionWidth: 20,
-    pathOptions: { borderRadius: 18, offset: 32 },
-    data: edge as unknown as Record<string, unknown>,
+    zIndex: 0,
+    data: {
+      workflowEdge: edge,
+      label: formatWorkflowEdgeLabel(edge),
+      kind: edge.kind,
+      status: errorEdgeIds.has(edge.id) ? "error" : warningEdgeIds.has(edge.id) ? "warning" : undefined,
+    } as unknown as Record<string, unknown>,
   }));
 }
 
@@ -972,6 +952,7 @@ export default function WorkflowConfigPage({
               nodes={nodes}
               edges={edges}
               nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
               fitView
               minZoom={0.35}
               maxZoom={1.5}
