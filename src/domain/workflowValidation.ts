@@ -91,6 +91,7 @@ export function buildWorkflowValidation(workflow: Workflow): ValidationItem[] {
   const deadEndNodes = workflow.elements.filter(
     (element) => element.type !== "end" && !canReachEnd.has(element.id),
   );
+  const terminalDeadEndNodes = deadEndNodes.filter((element) => outgoing(element.id).length === 0);
   const startIncomingEdges = workflow.edges.filter((edge) => {
     const target = elementsById.get(edge.target);
     return target?.type === "start";
@@ -179,7 +180,9 @@ export function buildWorkflowValidation(workflow: Workflow): ValidationItem[] {
         ? `${deadEndNodes.length} 个节点无法到达结束事件：${names(deadEndNodes)}`
         : "所有路径均可到达结束事件",
       severity: "error",
-      elementIds: deadEndNodes.map((element) => element.id),
+      elementIds: (terminalDeadEndNodes.length ? terminalDeadEndNodes : deadEndNodes).map(
+        (element) => element.id,
+      ),
     },
     {
       key: "start-incoming",

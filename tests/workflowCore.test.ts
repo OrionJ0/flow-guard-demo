@@ -5,7 +5,11 @@ import {
   composeConditionExpression,
   parseConditionExpression,
 } from "../src/domain/conditionExpression";
-import { formatWorkflowEdgeLabel, getPropertyPanelTabKeys } from "../src/domain/workflowEditor";
+import {
+  findGatewayMergeTarget,
+  formatWorkflowEdgeLabel,
+  getPropertyPanelTabKeys,
+} from "../src/domain/workflowEditor";
 import {
   markWorkflowChanged,
   publishWorkflow,
@@ -229,6 +233,31 @@ test("workflow validation detects invalid branch and event relations", () => {
   assert.ok(failedKeys.includes("end-outgoing"));
 });
 
+test("workflow validation highlights only terminal dead-end nodes", () => {
+  const workflow = baseWorkflow("无出口标记");
+  const [start, , end] = workflow.elements;
+  const gateway = { ...workflow.elements[1], id: "gateway", type: "condition" as const, title: "条件" };
+  const configured = { ...workflow.elements[1], id: "configured", title: "已接回审批", assignee: "审批经理" };
+  const approval = { ...workflow.elements[1], id: "approval", title: "新增审批", assignee: "审批经理" };
+  const cc = { ...workflow.elements[1], id: "cc", type: "cc" as const, title: "新增抄送" };
+  const system = { ...workflow.elements[1], id: "system", type: "system" as const, title: "新增安全动作" };
+  workflow.elements = [start, gateway, configured, approval, cc, system, end];
+  workflow.edges = [
+    { id: "start_gateway", source: start.id, target: gateway.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
+    { id: "configured_branch", source: gateway.id, target: configured.id, kind: "branch", label: "已配置", expression: "ok", priority: 1, mode: "如果" },
+    { id: "new_branch", source: gateway.id, target: approval.id, kind: "branch", label: "新增", expression: "new", priority: 2, mode: "如果" },
+    { id: "configured_end", source: configured.id, target: end.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
+    { id: "approval_cc", source: approval.id, target: cc.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
+    { id: "cc_system", source: cc.id, target: system.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
+  ];
+
+  const deadEndItem = buildWorkflowValidation(workflow).find((item) => item.key === "dead-end-nodes");
+
+  assert.ok(deadEndItem);
+  assert.equal(deadEndItem.ok, false);
+  assert.deepEqual(deadEndItem.elementIds, ["system"]);
+});
+
 test("branch deletion impact excludes shared merge nodes and end events", () => {
   const workflow = baseWorkflow("删除策略");
   const [start, , end] = workflow.elements;
@@ -279,6 +308,28 @@ test("workflow layout creates readable levels and branch lanes", () => {
   assert.ok(position("high").x < position(end.id).x);
   assert.notEqual(position("high").y, position("low").y);
   assert.ok(position("high").y < position("low").y);
+});
+
+test("gateway merge target prefers the first shared downstream node before end", () => {
+  const workflow = baseWorkflow("汇合测试");
+  const [start, , end] = workflow.elements;
+  const gateway = { ...workflow.elements[1], id: "gateway", type: "condition" as const, title: "条件" };
+  const high = { ...workflow.elements[1], id: "high", title: "高风险审批" };
+  const low = { ...workflow.elements[1], id: "low", title: "普通审批" };
+  const audit = { ...workflow.elements[1], id: "audit", title: "审计抄送", type: "cc" as const };
+  const merge = { ...workflow.elements[1], id: "merge", title: "记录日志", type: "system" as const };
+  workflow.elements = [start, gateway, high, low, audit, merge, end];
+  workflow.edges = [
+    { id: "start_gateway", source: start.id, target: gateway.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
+    { id: "high_branch", source: gateway.id, target: high.id, kind: "branch", label: "高风险", expression: "risk", priority: 1, mode: "如果" },
+    { id: "low_branch", source: gateway.id, target: low.id, kind: "branch", label: "普通风险", expression: "normal", priority: 2, mode: "如果" },
+    { id: "high_audit", source: high.id, target: audit.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
+    { id: "audit_merge", source: audit.id, target: merge.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
+    { id: "low_merge", source: low.id, target: merge.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
+    { id: "merge_end", source: merge.id, target: end.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
+  ];
+
+  assert.equal(findGatewayMergeTarget(workflow, "gateway"), "merge");
 });
 
 test("gateway branch spreading keeps branch targets in separate lanes", () => {

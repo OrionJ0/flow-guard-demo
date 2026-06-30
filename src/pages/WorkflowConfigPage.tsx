@@ -74,7 +74,11 @@ import {
   getConditionDeletionImpact,
 } from "../domain/workflowDeletion";
 import { buildWorkflowExport, workflowExportFileName } from "../domain/workflowExport";
-import { formatWorkflowEdgeLabel, getPropertyPanelTabKeys } from "../domain/workflowEditor";
+import {
+  findGatewayMergeTarget,
+  formatWorkflowEdgeLabel,
+  getPropertyPanelTabKeys,
+} from "../domain/workflowEditor";
 import { parseWorkflowImport } from "../domain/workflowImport";
 import { layoutWorkflow, shiftReachableElements, spreadGatewayBranches } from "../domain/workflowLayout";
 import {
@@ -479,6 +483,7 @@ export default function WorkflowConfigPage({
     updateWorkflow((draft) => {
       const gateway = draft.elements.find((element) => element.id === gatewayId);
       if (!gateway) return;
+      const mergeTargetId = findGatewayMergeTarget(draft, gatewayId);
       if (type === "condition") {
         const branchTotal = branchEdges(draft, gatewayId).length;
         const nested = createElement("condition", "嵌套条件", gateway.x + 260, gateway.y + (branchTotal - 0.5) * 140);
@@ -494,6 +499,10 @@ export default function WorkflowConfigPage({
         );
         draft.edges.push(createEdge(nested.id, yes.id, "条件1", "请配置条件表达", 1, "如果", "branch"));
         draft.edges.push(createEdge(nested.id, no.id, "否则", "其他情况", 2, "否则", "branch"));
+        if (mergeTargetId) {
+          draft.edges.push(createEdge(yes.id, mergeTargetId));
+          draft.edges.push(createEdge(no.id, mergeTargetId));
+        }
         let arranged = spreadGatewayBranches(draft, gateway.id);
         arranged = spreadGatewayBranches(arranged, nested.id);
         draft.elements = arranged.elements;
@@ -508,6 +517,7 @@ export default function WorkflowConfigPage({
       draft.edges.push(
         createEdge(gateway.id, next.id, `条件${branchTotal + 1}`, "请配置条件表达", branchTotal + 1, "如果", "branch"),
       );
+      if (mergeTargetId) draft.edges.push(createEdge(next.id, mergeTargetId));
       const arranged = spreadGatewayBranches(draft, gateway.id);
       draft.elements = arranged.elements;
       draft.edges = arranged.edges;
