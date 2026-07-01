@@ -69,6 +69,7 @@ export interface ApprovalScene {
 }
 
 export type Selection =
+  | { kind: "none" }
   | { kind: "node"; id: string }
   | { kind: "edge"; id: string };
 

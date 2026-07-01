@@ -8,6 +8,10 @@ function names(elements: WorkflowElement[]) {
   return elements.map((element) => element.title).join("、");
 }
 
+function unique<T>(items: T[]) {
+  return [...new Set(items)];
+}
+
 function validEdge(edge: WorkflowEdge, elementIds: Set<string>) {
   return elementIds.has(edge.source) && elementIds.has(edge.target);
 }
@@ -44,6 +48,26 @@ function canReachTargets(targets: string[], edges: WorkflowEdge[]) {
   return visited;
 }
 
+function duplicateBranchEdgesBy<T extends string | number>(
+  branches: WorkflowEdge[],
+  keyForEdge: (edge: WorkflowEdge) => T | undefined,
+) {
+  const grouped = new Map<T, WorkflowEdge[]>();
+  branches.forEach((edge) => {
+    const key = keyForEdge(edge);
+    if (key === undefined) return;
+    const bucket = grouped.get(key) || [];
+    bucket.push(edge);
+    grouped.set(key, bucket);
+  });
+
+  return [...grouped.values()].filter((items) => items.length > 1).flat();
+}
+
+function normalizeBranchExpression(expression: string) {
+  return expression.trim().replace(/\s+/g, " ");
+}
+
 export function buildWorkflowValidation(workflow: Workflow): ValidationItem[] {
   const elementsById = byId(workflow.elements);
   const elementIds = new Set(workflow.elements.map((element) => element.id));
@@ -58,6 +82,7 @@ export function buildWorkflowValidation(workflow: Workflow): ValidationItem[] {
   const outgoing = (id: string) => validEdges.filter((edge) => edge.source === id);
   const branchEdges = (id: string) =>
     validEdges.filter((edge) => edge.source === id && edge.kind === "branch");
+  const conditionElements = workflow.elements.filter((element) => element.type === "condition");
 
   const emptyApprovers = workflow.elements.filter(
     (element) =>
@@ -78,6 +103,19 @@ export function buildWorkflowValidation(workflow: Workflow): ValidationItem[] {
   });
   const emptyBranchEdges = workflow.edges.filter(
     (edge) => edge.kind === "branch" && edge.mode !== "否则" && !edge.expression.trim(),
+  );
+  const missingFallbackGateways = conditionElements.filter((element) => {
+    const branches = branchEdges(element.id);
+    return branches.length > 0 && !branches.some((edge) => edge.mode === "否则");
+  });
+  const duplicatePriorityEdges = conditionElements.flatMap((element) =>
+    duplicateBranchEdgesBy(branchEdges(element.id), (edge) => edge.priority),
+  );
+  const duplicateExpressionEdges = conditionElements.flatMap((element) =>
+    duplicateBranchEdgesBy(branchEdges(element.id).filter((edge) => edge.mode !== "否则"), (edge) => {
+      const expression = normalizeBranchExpression(edge.expression);
+      return expression || undefined;
+    }),
   );
   const orphanNodes = workflow.elements.filter(
     (element) =>
@@ -124,10 +162,10 @@ export function buildWorkflowValidation(workflow: Workflow): ValidationItem[] {
     {
       key: "gateways",
       ok: badGateways.length === 0,
-      title: "条件网关",
+      title: "条件分支",
       detail: badGateways.length
-        ? `${badGateways.length} 个条件网关少于 2 条有效分支：${names(badGateways)}`
-        : "条件网关均具备有效分支",
+        ? `${badGateways.length} 个条件分支少于 2 条有效分支：${names(badGateways)}`
+        : "条件分支均具备有效分支",
       severity: "error",
       elementIds: badGateways.map((element) => element.id),
     },
@@ -136,7 +174,7 @@ export function buildWorkflowValidation(workflow: Workflow): ValidationItem[] {
       ok: invalidBranchEdges.length === 0,
       title: "分支配置",
       detail: invalidBranchEdges.length
-        ? `${invalidBranchEdges.length} 条分支端点无效或源节点不是条件网关`
+        ? `${invalidBranchEdges.length} 条分支端点无效或源节点不是条件分支`
         : "条件分支端点和源节点均有效",
       severity: "error",
       edgeIds: invalidBranchEdges.map((edge) => edge.id),
@@ -153,6 +191,40 @@ export function buildWorkflowValidation(workflow: Workflow): ValidationItem[] {
       blocking: true,
       edgeIds: emptyBranchEdges.map((edge) => edge.id),
       elementIds: emptyBranchEdges.flatMap((edge) => [edge.source, edge.target]),
+    },
+    {
+      key: "branch-fallback",
+      ok: missingFallbackGateways.length === 0,
+      title: "兜底分支",
+      detail: missingFallbackGateways.length
+        ? `${missingFallbackGateways.length} 个条件分支缺少“否则”兜底：${names(missingFallbackGateways)}`
+        : "条件分支均已配置兜底路径",
+      severity: "warning",
+      blocking: true,
+      elementIds: missingFallbackGateways.map((element) => element.id),
+    },
+    {
+      key: "branch-priority",
+      ok: duplicatePriorityEdges.length === 0,
+      title: "分支优先级",
+      detail: duplicatePriorityEdges.length
+        ? `${duplicatePriorityEdges.length} 条分支优先级重复，可能导致路由顺序不确定`
+        : "条件分支优先级没有重复",
+      severity: "error",
+      edgeIds: unique(duplicatePriorityEdges.map((edge) => edge.id)),
+      elementIds: unique(duplicatePriorityEdges.flatMap((edge) => [edge.source, edge.target])),
+    },
+    {
+      key: "branch-overlap",
+      ok: duplicateExpressionEdges.length === 0,
+      title: "条件重叠",
+      detail: duplicateExpressionEdges.length
+        ? `${duplicateExpressionEdges.length} 条分支条件重复，请调整条件或优先级`
+        : "未发现完全重复的分支条件",
+      severity: "warning",
+      blocking: true,
+      edgeIds: unique(duplicateExpressionEdges.map((edge) => edge.id)),
+      elementIds: unique(duplicateExpressionEdges.flatMap((edge) => [edge.source, edge.target])),
     },
     {
       key: "orphan-nodes",

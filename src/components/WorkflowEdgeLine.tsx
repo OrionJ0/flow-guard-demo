@@ -1,5 +1,4 @@
 import {
-  BaseEdge,
   EdgeLabelRenderer,
   getSmoothStepPath,
   type EdgeProps,
@@ -36,15 +35,37 @@ export default function WorkflowEdgeLine({
     offset: 32,
   });
   const edgeData = data as unknown as WorkflowEdgeLineData;
+  const defaultStroke =
+    edgeData.status === "error"
+      ? "#c9362e"
+      : edgeData.status === "warning"
+        ? "#bd6b13"
+        : edgeData.kind === "branch"
+          ? "#6952c7"
+          : "#7f8fa4";
+  const edgeStyle = {
+    fill: "none",
+    stroke: selected ? "#176bdc" : defaultStroke,
+    strokeWidth: selected ? 3 : edgeData.kind === "branch" ? 2.4 : 2,
+    opacity: 1,
+    ...style,
+  };
 
   return (
     <>
-      <BaseEdge
+      <path
         id={id}
-        path={edgePath}
+        className="react-flow__edge-path"
+        d={edgePath}
         markerEnd={markerEnd}
-        style={style}
-        interactionWidth={interactionWidth}
+        style={edgeStyle}
+      />
+      <path
+        className="react-flow__edge-interaction"
+        d={edgePath}
+        fill="none"
+        strokeOpacity={0}
+        strokeWidth={interactionWidth}
       />
       {edgeData.label && (
         <EdgeLabelRenderer>

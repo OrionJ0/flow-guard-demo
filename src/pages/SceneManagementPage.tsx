@@ -11,7 +11,6 @@ import {
   Row,
   Select,
   Space,
-  Statistic,
   Tag,
   Typography,
 } from "antd";
@@ -126,8 +125,6 @@ export default function SceneManagementPage({
       sceneCount: scenes.length,
       enabledCount: scenes.filter((scene) => scene.workflow.status === "已启用")
         .length,
-      approvalCount: scenes.reduce((sum, scene) => sum + countApprovals(scene), 0),
-      branchCount: scenes.reduce((sum, scene) => sum + countBranches(scene), 0),
     }),
     [scenes],
   );
@@ -242,6 +239,10 @@ export default function SceneManagementPage({
         ...imported,
         id: duplicate ? uid("scene") : imported.id,
         name: duplicate ? `${imported.name} 导入` : imported.name,
+        workflow: {
+          ...imported.workflow,
+          status: "草稿",
+        },
         updatedAt: new Date().toISOString(),
       };
       await onChangeScenes([nextScene, ...scenes]);
@@ -300,29 +301,6 @@ export default function SceneManagementPage({
             审批场景由用户自定义维护。每个场景拥有独立流程，可进入配置页设置审批人、条件分支和抄送人。
           </p>
         </section>
-
-        <Row gutter={[12, 12]} className="summary-row">
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic title="场景数量" value={metrics.sceneCount} />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic title="已启用" value={metrics.enabledCount} />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic title="审批节点" value={metrics.approvalCount} />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic title="条件分支" value={metrics.branchCount} />
-            </Card>
-          </Col>
-        </Row>
 
         <Card
           title={

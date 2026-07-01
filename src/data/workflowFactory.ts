@@ -143,7 +143,7 @@ function riskWorkflow(): Workflow {
     desc: "确认业务必要性和处理规则",
     assignee: "业务负责人",
   });
-  const gateway = createElement("condition", "条件判断", 520, 282, {
+  const gateway = createElement("condition", "条件分支", 520, 282, {
     id: "risk_gateway",
     desc: "按申请数量和字段类型判断",
   });
@@ -258,7 +258,7 @@ function reportWorkflow(): Workflow {
     id: "report_start",
     desc: "选择备案、备案变更或注销备案材料",
   });
-  const gateway = createElement("condition", "报表字段判断", 320, 260, {
+  const gateway = createElement("condition", "报表字段分支", 320, 260, {
     id: "report_gateway",
     desc: "判断报表字段范围",
   });

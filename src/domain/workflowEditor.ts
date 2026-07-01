@@ -75,7 +75,7 @@ export function getPropertyPanelTabKeys(
   workflow: Workflow,
   selection?: Selection,
 ): PropertyPanelTabKey[] {
-  if (!selection) return ["element", "check"];
+  if (!selection || selection.kind === "none") return ["element", "check"];
 
   if (selection.kind === "edge") {
     const edge = workflow.edges.find((item) => item.id === selection.id);

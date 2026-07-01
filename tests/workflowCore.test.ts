@@ -48,6 +48,12 @@ test("property panel hides branch tab for non-branch context", () => {
   assert.deepEqual(getPropertyPanelTabKeys(workflow, selection), ["element", "check"]);
 });
 
+test("property panel supports an empty selection state", () => {
+  const workflow = baseWorkflow("空选择测试");
+
+  assert.deepEqual(getPropertyPanelTabKeys(workflow, { kind: "none" }), ["element", "check"]);
+});
+
 test("property panel shows branch tab for condition gateway and branch edge", () => {
   const workflow = baseWorkflow("测试流程");
   const gateway = {
@@ -211,6 +217,46 @@ test("workflow validation treats missing approver as blocking warning", () => {
   assert.equal(approverItem.ok, false);
   assert.equal(approverItem.severity, "warning");
   assert.equal(hasBlockingValidationErrors([approverItem]), true);
+});
+
+test("workflow validation detects branch fallback, priority, and duplicate condition issues", () => {
+  const workflow = baseWorkflow("路由校验");
+  const [start, , end] = workflow.elements;
+  const gateway = {
+    ...workflow.elements[1],
+    id: "gateway",
+    type: "condition" as const,
+    title: "条件分支",
+    assignee: "审批经理",
+  };
+  const first = {
+    ...workflow.elements[1],
+    id: "first_approval",
+    title: "第一审批",
+    assignee: "审批经理",
+  };
+  const second = {
+    ...workflow.elements[1],
+    id: "second_approval",
+    title: "第二审批",
+    assignee: "审批经理",
+  };
+  workflow.elements = [start, gateway, first, second, end];
+  workflow.edges = [
+    { id: "start_gateway", source: start.id, target: gateway.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
+    { id: "branch_first", source: gateway.id, target: first.id, kind: "branch", label: "条件一", expression: "申请数量 大于 100", priority: 1, mode: "如果" },
+    { id: "branch_second", source: gateway.id, target: second.id, kind: "branch", label: "条件二", expression: "申请数量 大于 100", priority: 1, mode: "如果" },
+    { id: "first_end", source: first.id, target: end.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
+    { id: "second_end", source: second.id, target: end.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
+  ];
+
+  const failedKeys = buildWorkflowValidation(workflow)
+    .filter((item) => !item.ok)
+    .map((item) => item.key);
+
+  assert.ok(failedKeys.includes("branch-fallback"));
+  assert.ok(failedKeys.includes("branch-priority"));
+  assert.ok(failedKeys.includes("branch-overlap"));
 });
 
 test("workflow validation detects invalid branch and event relations", () => {

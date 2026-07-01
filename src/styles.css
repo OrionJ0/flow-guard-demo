@@ -141,10 +141,6 @@ textarea {
   line-height: 1.6;
 }
 
-.summary-row {
-  margin-bottom: 14px;
-}
-
 .ant-card {
   border-color: var(--line);
   box-shadow: var(--shadow);
@@ -295,45 +291,102 @@ textarea {
 }
 
 .canvas-toolbar {
-  min-height: 70px;
+  min-height: 88px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 8px 12px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 9px 12px 10px;
   border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
 
+.canvas-toolbar-info,
+.canvas-toolbar-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.canvas-toolbar-actions,
+.canvas-toolbar-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.canvas-toolbar-actions {
+  flex: 0 0 auto;
+}
+
+.canvas-toolbar-tools {
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-group + .toolbar-group {
+  margin-left: 2px;
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+}
+
+.toolbar-group-final {
+  flex: 0 0 auto;
+}
+
 .canvas-meta {
-  min-width: 220px;
-  max-width: 340px;
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.canvas-meta-copy {
+  min-width: 0;
   display: grid;
   gap: 2px;
 }
 
-.canvas-meta strong,
-.canvas-meta span {
+.canvas-meta-copy strong,
+.canvas-meta-copy span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.canvas-meta strong {
+.canvas-meta-copy strong {
   font-size: 15px;
 }
 
-.canvas-meta span {
+.canvas-meta-copy span {
   color: var(--muted);
   font-size: 12px;
 }
 
 .canvas-stats {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.canvas-stats .ant-tag {
+  margin-inline-end: 0;
+  padding: 0 7px;
+  font-size: 12px;
+  line-height: 20px;
+  white-space: nowrap;
 }
 
 .zoom-value {
@@ -359,6 +412,8 @@ textarea {
 
 .reactflow-shell .react-flow__edges {
   z-index: 1;
+  overflow: visible;
+  pointer-events: visiblePainted;
 }
 
 .reactflow-shell .react-flow__edgelabel-renderer {
@@ -739,6 +794,13 @@ textarea {
   stroke-width: 3;
 }
 
+.react-flow__edge-path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 1;
+}
+
 .react-flow__edge.edge-sequence path {
   filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.72));
 }
@@ -856,6 +918,26 @@ textarea {
 @media (max-width: 1220px) {
   .flow-modeler {
     grid-template-columns: 1fr;
+  }
+
+  .canvas-toolbar {
+    align-items: stretch;
+  }
+
+  .canvas-toolbar-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .canvas-toolbar-tools {
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+
+  .canvas-meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
   }
 
   .props-panel .ant-card {

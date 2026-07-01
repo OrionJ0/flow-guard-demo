@@ -1,7 +1,10 @@
+import type { KeyboardEvent } from "react";
 import { Handle, NodeToolbar, Position, type NodeProps } from "@xyflow/react";
 import { Tooltip } from "antd";
 import {
   CircleStop,
+  ClipboardPaste,
+  Copy,
   Diamond,
   Play,
   Send,
@@ -13,8 +16,13 @@ import type { WorkflowElement, WorkflowElementType } from "../types";
 
 export interface WorkflowNodeData {
   element: WorkflowElement;
+  active?: boolean;
+  canPaste?: boolean;
   onQuickAdd?: (sourceId: string, type: WorkflowElementType) => void;
+  onQuickCopy?: (nodeId: string) => void;
+  onQuickPaste?: (nodeId: string) => void;
   onQuickDelete?: (nodeId: string) => void;
+  onSelectNode?: (nodeId: string) => void;
 }
 
 const iconByType = {
@@ -36,16 +44,39 @@ function subtitleForNode(node: WorkflowElement) {
 }
 
 export default function WorkflowNode({ data, selected }: NodeProps) {
-  const { element: node, onQuickAdd, onQuickDelete } = data as unknown as WorkflowNodeData;
+  const {
+    element: node,
+    active,
+    canPaste,
+    onQuickAdd,
+    onQuickCopy,
+    onQuickPaste,
+    onQuickDelete,
+    onSelectNode,
+  } = data as unknown as WorkflowNodeData;
   const Icon = iconByType[node.type];
   const canAppend = node.type !== "end";
   const canDelete = node.type !== "start" && node.type !== "end";
+  const canCopy = node.type !== "start" && node.type !== "end";
+  const canQuickPaste = Boolean(canPaste && canAppend && canCopy);
   const quickTipProps = {
     placement: "right" as const,
     mouseEnterDelay: 0.15,
   };
+  const handleSelectKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    event.stopPropagation();
+    onSelectNode?.(node.id);
+  };
+  const selectableProps = {
+    role: "button",
+    tabIndex: 0,
+    "aria-label": node.title,
+    onKeyDown: handleSelectKeyDown,
+  };
 
-  const toolbar = selected && (canAppend || canDelete) && (
+  const toolbar = selected && active && (canAppend || canCopy || canQuickPaste || canDelete) && (
     <NodeToolbar position={Position.Right} offset={12} className="node-quick-toolbar">
       {canAppend && (
         <>
@@ -62,11 +93,11 @@ export default function WorkflowNode({ data, selected }: NodeProps) {
               <UserCheck size={15} />
             </button>
           </Tooltip>
-          <Tooltip title="添加条件网关" {...quickTipProps}>
+          <Tooltip title="添加条件分支" {...quickTipProps}>
             <button
               type="button"
-              aria-label="添加条件网关"
-              title="添加条件网关"
+              aria-label="添加条件分支"
+              title="添加条件分支"
               onClick={(event) => {
                 event.stopPropagation();
                 onQuickAdd?.(node.id, "condition");
@@ -103,6 +134,36 @@ export default function WorkflowNode({ data, selected }: NodeProps) {
           </Tooltip>
         </>
       )}
+      {canCopy && (
+        <Tooltip title="复制节点" {...quickTipProps}>
+          <button
+            type="button"
+            aria-label="复制节点"
+            title="复制节点"
+            onClick={(event) => {
+              event.stopPropagation();
+              onQuickCopy?.(node.id);
+            }}
+          >
+            <Copy size={15} />
+          </button>
+        </Tooltip>
+      )}
+      {canQuickPaste && (
+        <Tooltip title="粘贴节点" {...quickTipProps}>
+          <button
+            type="button"
+            aria-label="粘贴节点"
+            title="粘贴节点"
+            onClick={(event) => {
+              event.stopPropagation();
+              onQuickPaste?.(node.id);
+            }}
+          >
+            <ClipboardPaste size={15} />
+          </button>
+        </Tooltip>
+      )}
       {canDelete && (
         <Tooltip title="删除节点" {...quickTipProps}>
           <button
@@ -124,7 +185,10 @@ export default function WorkflowNode({ data, selected }: NodeProps) {
 
   if (node.type === "start" || node.type === "end") {
     return (
-      <div className={`flow-event flow-event-${node.type} ${selected ? "is-selected" : ""}`}>
+      <div
+        className={`flow-event flow-event-${node.type} ${selected ? "is-selected" : ""}`}
+        {...selectableProps}
+      >
         {toolbar}
         {node.type !== "start" && <Handle type="target" position={Position.Left} />}
         <div className="flow-event-shape">
@@ -138,7 +202,7 @@ export default function WorkflowNode({ data, selected }: NodeProps) {
 
   if (node.type === "condition") {
     return (
-      <div className={`flow-gateway ${selected ? "is-selected" : ""}`}>
+      <div className={`flow-gateway ${selected ? "is-selected" : ""}`} {...selectableProps}>
         {toolbar}
         <Handle type="target" position={Position.Left} />
         <div className="flow-gateway-shape">
@@ -151,7 +215,7 @@ export default function WorkflowNode({ data, selected }: NodeProps) {
   }
 
   return (
-    <div className={`flow-task flow-task-${node.type} ${selected ? "is-selected" : ""}`}>
+    <div className={`flow-task flow-task-${node.type} ${selected ? "is-selected" : ""}`} {...selectableProps}>
       {toolbar}
       <Handle type="target" position={Position.Left} />
       <span className="flow-task-icon">
