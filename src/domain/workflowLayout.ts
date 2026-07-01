@@ -43,6 +43,77 @@ function typeRank(element: WorkflowElement) {
   return rank[element.type];
 }
 
+function average(values: number[]) {
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function branchEdges(workflow: Workflow, id: string) {
+  return outgoing(workflow, id).filter((edge) => edge.kind === "branch");
+}
+
+function sequenceEdges(workflow: Workflow, id: string) {
+  return outgoing(workflow, id).filter((edge) => edge.kind !== "branch");
+}
+
+function estimateBranchLeaves(workflow: Workflow, id: string, visiting = new Set<string>()): number {
+  if (visiting.has(id)) return 1;
+  const nextVisiting = new Set(visiting).add(id);
+  const branches = branchEdges(workflow, id);
+
+  if (branches.length) {
+    return Math.max(
+      1,
+      branches.reduce(
+        (sum, edge) => sum + estimateBranchLeaves(workflow, edge.target, nextVisiting),
+        0,
+      ),
+    );
+  }
+
+  const [sequence] = sequenceEdges(workflow, id);
+  if (!sequence) return 1;
+  return Math.max(1, Math.min(estimateBranchLeaves(workflow, sequence.target, nextVisiting), 3));
+}
+
+function distributeBranchCenters(
+  workflow: Workflow,
+  branches: ReturnType<typeof branchEdges>,
+  centerY: number,
+  yGap: number,
+) {
+  const spans = branches.map((edge) => estimateBranchLeaves(workflow, edge.target));
+  const totalLeaves = spans.reduce((sum, span) => sum + span, 0);
+  let cursor = centerY - ((totalLeaves - 1) * yGap) / 2;
+
+  return branches.map((edge, index) => {
+    const span = spans[index];
+    const childY = cursor + ((span - 1) * yGap) / 2;
+    cursor += span * yGap;
+    return { edge, y: childY };
+  });
+}
+
+function resolveLevelCollisions(elements: WorkflowElement[], yGap: number) {
+  if (elements.length <= 1) return;
+  const desiredCenter = average(elements.map((element) => element.y));
+  elements.sort((a, b) => {
+    const yDelta = a.y - b.y;
+    if (yDelta !== 0) return yDelta;
+    return typeRank(a) - typeRank(b);
+  });
+
+  for (let index = 1; index < elements.length; index += 1) {
+    const minY = elements[index - 1].y + yGap;
+    if (elements[index].y < minY) elements[index].y = minY;
+  }
+
+  const shiftedCenter = average(elements.map((element) => element.y));
+  const shift = shiftedCenter - desiredCenter;
+  elements.forEach((element) => {
+    element.y -= shift;
+  });
+}
+
 export function shiftReachableElements(
   workflow: Workflow,
   startId: string,
@@ -111,6 +182,30 @@ export function layoutWorkflow(
     grouped.get(level)!.push(element);
   });
 
+  const desiredY = new Map<string, number[]>();
+  const pushDesiredY = (id: string, y: number) => {
+    if (!desiredY.has(id)) desiredY.set(id, []);
+    desiredY.get(id)!.push(y);
+  };
+  const placeFrom = (id: string, y: number, visiting = new Set<string>()) => {
+    if (visiting.has(id)) return;
+    pushDesiredY(id, y);
+    const nextVisiting = new Set(visiting).add(id);
+    const branches = branchEdges(next, id);
+
+    if (branches.length) {
+      distributeBranchCenters(next, branches, y, yGap).forEach(({ edge, y: childY }) => {
+        placeFrom(edge.target, childY, nextVisiting);
+      });
+      return;
+    }
+
+    sequenceEdges(next, id).forEach((edge) => {
+      placeFrom(edge.target, y, nextVisiting);
+    });
+  };
+  placeFrom(start.id, centerY);
+
   [...grouped.entries()].forEach(([level, elements]) => {
     elements.sort((a, b) => {
       const priorityDelta = incomingBranchPriority(next, a) - incomingBranchPriority(next, b);
@@ -121,8 +216,11 @@ export function layoutWorkflow(
     const totalHeight = (elements.length - 1) * yGap;
     elements.forEach((element, index) => {
       element.x = originX + level * xGap;
-      element.y = centerY - totalHeight / 2 + index * yGap;
+      element.y = desiredY.has(element.id)
+        ? average(desiredY.get(element.id)!)
+        : centerY - totalHeight / 2 + index * yGap;
     });
+    resolveLevelCollisions(elements, yGap);
   });
 
   return next;

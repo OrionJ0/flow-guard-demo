@@ -1,6 +1,6 @@
 export type ConditionFieldKey =
-  | "exportCount"
-  | "sensitivity"
+  | "requestCount"
+  | "fieldType"
   | "riskLevel"
   | "reportScope"
   | "dataAction";
@@ -26,30 +26,30 @@ export interface ConditionOperatorOption {
 }
 
 export const CONDITION_FIELDS: ConditionFieldOption[] = [
-  { value: "exportCount", label: "导出数量", valueKind: "number" },
+  { value: "requestCount", label: "申请数量", valueKind: "number" },
   {
-    value: "sensitivity",
-    label: "敏感字段",
+    value: "fieldType",
+    label: "字段类型",
     valueKind: "select",
-    valueOptions: ["未脱敏人脸图像", "原图", "完整证件号", "完整手机号"],
+    valueOptions: ["基础字段", "明细字段", "汇总字段", "扩展字段"],
   },
   {
     value: "riskLevel",
-    label: "风险等级",
+    label: "条件级别",
     valueKind: "select",
-    valueOptions: ["高", "中", "低"],
+    valueOptions: ["一级", "二级", "三级"],
   },
   {
     value: "reportScope",
     label: "报表范围",
     valueKind: "select",
-    valueOptions: ["仅统计字段", "包含敏感字段", "规则清单", "措施清单"],
+    valueOptions: ["统计字段", "明细字段", "规则清单", "措施清单"],
   },
   {
     value: "dataAction",
-    label: "处置动作",
+    label: "处理动作",
     valueKind: "select",
-    valueOptions: ["访问", "导出", "删除", "匿名化"],
+    valueOptions: ["查看", "处理", "归档", "生成"],
   },
 ];
 
@@ -62,7 +62,7 @@ export const CONDITION_OPERATORS: ConditionOperatorOption[] = [
 ];
 
 export const DEFAULT_CONDITION_PARTS: ConditionParts = {
-  field: "exportCount",
+  field: "requestCount",
   operator: "gt",
   value: "500",
 };
@@ -127,36 +127,55 @@ export function parseConditionExpression(expression: string): ConditionParts {
     };
   }
 
-  const exportCountMatch = trimmed.match(/导出数量\s*(?:>|大于|>=|大于等于)\s*(\d+)/);
+  const exportCountMatch = trimmed.match(/(?:申请数量|导出数量)\s*(?:>|大于|>=|大于等于)\s*(\d+)/);
   if (exportCountMatch) {
     return {
-      field: "exportCount",
+      field: "requestCount",
       operator: trimmed.includes(">=") || trimmed.includes("大于等于") ? "gte" : "gt",
       value: exportCountMatch[1],
     };
   }
 
-  const sensitivity = ["未脱敏人脸图像", "原图", "完整证件号", "完整手机号"].find((item) =>
+  const fieldType = [
+    "基础字段",
+    "明细字段",
+    "汇总字段",
+    "扩展字段",
+    "未脱敏人脸图像",
+    "原图",
+    "完整证件号",
+    "完整手机号",
+  ].find((item) =>
     trimmed.includes(item),
   );
-  if (sensitivity) {
-    return { field: "sensitivity", operator: "contains", value: sensitivity };
+  if (fieldType) {
+    const neutralFieldType = ["未脱敏人脸图像", "原图", "完整证件号", "完整手机号"].includes(fieldType)
+      ? "明细字段"
+      : fieldType;
+    return { field: "fieldType", operator: "contains", value: neutralFieldType };
   }
 
   if (trimmed.includes("统计") || trimmed.includes("规则清单") || trimmed.includes("措施清单")) {
-    const value = trimmed.includes("敏感") ? "包含敏感字段" : "仅统计字段";
+    const value = trimmed.includes("明细") || trimmed.includes("敏感") ? "明细字段" : "统计字段";
     return { field: "reportScope", operator: "eq", value };
   }
 
-  const dataAction = ["访问", "导出", "删除", "匿名化"].find((item) => trimmed.includes(item));
+  const dataAction = ["查看", "处理", "归档", "生成", "访问", "导出", "删除", "匿名化"].find((item) => trimmed.includes(item));
   if (dataAction) return { field: "dataAction", operator: "eq", value: dataAction };
 
-  const riskLevel = ["高", "中", "低"].find((item) => trimmed.includes(item));
-  if (riskLevel) return { field: "riskLevel", operator: "eq", value: riskLevel };
+  const level = ["一级", "二级", "三级"].find((item) => trimmed.includes(item));
+  if (level) return { field: "riskLevel", operator: "eq", value: level };
+
+  const legacyLevel = [
+    ["高", "一级"],
+    ["中", "二级"],
+    ["低", "三级"],
+  ].find(([legacy]) => trimmed.includes(legacy));
+  if (legacyLevel) return { field: "riskLevel", operator: "eq", value: legacyLevel[1] };
 
   return {
     field: "riskLevel",
     operator: "eq",
-    value: "高",
+    value: "一级",
   };
 }

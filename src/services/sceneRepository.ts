@@ -1,4 +1,5 @@
 import { STORAGE_KEY, seedScenes } from "../data/workflowFactory";
+import { neutralizeScenes } from "../domain/sceneSanitizer";
 import type { ApprovalScene } from "../types";
 
 export interface SceneRepository {
@@ -17,6 +18,10 @@ function cloneScenes(scenes: ApprovalScene[]): ApprovalScene[] {
   return JSON.parse(JSON.stringify(scenes)) as ApprovalScene[];
 }
 
+function saveScenes(scenes: ApprovalScene[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(neutralizeScenes(cloneScenes(scenes))));
+}
+
 export const mockSceneApi: SceneRepository = {
   async list() {
     await waitForMockLatency();
@@ -24,25 +29,29 @@ export const mockSceneApi: SceneRepository = {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as ApprovalScene[];
-        if (Array.isArray(parsed) && parsed.length) return parsed;
+        if (Array.isArray(parsed) && parsed.length) {
+          const neutralScenes = neutralizeScenes(parsed);
+          saveScenes(neutralScenes);
+          return neutralScenes;
+        }
       }
     } catch (error) {
       console.warn("Failed to read local scenes", error);
     }
     const seeded = seedScenes();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+    saveScenes(seeded);
     return seeded;
   },
 
   async saveAll(scenes) {
     await waitForMockLatency();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cloneScenes(scenes)));
+    saveScenes(scenes);
   },
 
   async reset() {
     await waitForMockLatency();
     const seeded = seedScenes();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+    saveScenes(seeded);
     return seeded;
   },
 };

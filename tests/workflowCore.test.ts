@@ -18,6 +18,7 @@ import {
 } from "../src/domain/workflowStatus";
 import { buildWorkflowExport, workflowExportFileName } from "../src/domain/workflowExport";
 import { parseWorkflowImport } from "../src/domain/workflowImport";
+import { neutralizeScene } from "../src/domain/sceneSanitizer";
 import {
   canRedoWorkflow,
   canUndoWorkflow,
@@ -60,7 +61,7 @@ test("property panel shows branch tab for condition gateway and branch edge", ()
     source: gateway.id,
     target: workflow.elements[2].id,
     kind: "branch",
-    label: "高风险",
+    label: "条件一",
     expression: "amount > 500",
     priority: 1,
     mode: "如果",
@@ -108,8 +109,8 @@ test("workflow export payload contains stable metadata and current workflow", ()
   workflow.elements[1].title = "内存中的最新审批节点";
   const scene = {
     id: "scene_export",
-    name: "高危/导出",
-    tag: "高危" as const,
+    name: "通用/导出",
+    tag: "通用" as const,
     desc: "导出当前内存数据",
     updatedAt: "2026-06-30T00:00:00.000Z",
     workflow,
@@ -126,9 +127,34 @@ test("workflow export payload contains stable metadata and current workflow", ()
 
 test("workflow export file name includes safe scene identity", () => {
   assert.equal(
-    workflowExportFileName("高危/导出", "scene_export"),
-    "approval-workflow-高危-导出-scene_export.json",
+    workflowExportFileName("通用/导出", "scene_export"),
+    "approval-workflow-通用-导出-scene_export.json",
   );
+});
+
+test("scene sanitizer neutralizes legacy demo wording", () => {
+  const workflow = baseWorkflow("旧场景");
+  workflow.name = "高危数据访问审批";
+  workflow.elements[1].title = "高风险审批";
+  workflow.edges[0].label = "高风险";
+  workflow.edges[0].expression = "导出数量 > 500 或包含未脱敏人脸图像";
+  const scene = {
+    id: "scene_legacy",
+    name: "高危数据访问",
+    tag: "高危" as const,
+    desc: "查看原图、完整证件号、批量导出",
+    updatedAt: "2026-06-30T00:00:00.000Z",
+    workflow,
+  };
+
+  const neutral = neutralizeScene(scene);
+
+  assert.equal(neutral.name, "通用资料申请");
+  assert.equal(neutral.tag, "通用");
+  assert.equal(neutral.workflow.name, "通用资料申请审批");
+  assert.equal(neutral.workflow.elements[1].title, "条件一审批");
+  assert.equal(neutral.workflow.edges[0].label, "条件一");
+  assert.equal(neutral.workflow.edges[0].expression.includes("明细资料"), true);
 });
 
 test("workflow history supports undo, redo, redo clearing, and limit", () => {
@@ -240,7 +266,7 @@ test("workflow validation highlights only terminal dead-end nodes", () => {
   const configured = { ...workflow.elements[1], id: "configured", title: "已接回审批", assignee: "审批经理" };
   const approval = { ...workflow.elements[1], id: "approval", title: "新增审批", assignee: "审批经理" };
   const cc = { ...workflow.elements[1], id: "cc", type: "cc" as const, title: "新增抄送" };
-  const system = { ...workflow.elements[1], id: "system", type: "system" as const, title: "新增安全动作" };
+  const system = { ...workflow.elements[1], id: "system", type: "system" as const, title: "新增系统动作" };
   workflow.elements = [start, gateway, configured, approval, cc, system, end];
   workflow.edges = [
     { id: "start_gateway", source: start.id, target: gateway.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
@@ -262,13 +288,13 @@ test("branch deletion impact excludes shared merge nodes and end events", () => 
   const workflow = baseWorkflow("删除策略");
   const [start, , end] = workflow.elements;
   const gateway = { ...workflow.elements[1], id: "gateway", type: "condition" as const, title: "条件" };
-  const yes = { ...workflow.elements[1], id: "yes_approval", title: "高风险审批" };
+  const yes = { ...workflow.elements[1], id: "yes_approval", title: "条件一审批" };
   const no = { ...workflow.elements[1], id: "no_approval", title: "普通审批" };
   const merge = { ...workflow.elements[1], id: "merge_approval", title: "汇合审批" };
   workflow.elements = [start, gateway, yes, no, merge, end];
   workflow.edges = [
     { id: "start_gateway", source: start.id, target: gateway.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
-    { id: "branch_yes", source: gateway.id, target: yes.id, kind: "branch", label: "高风险", expression: "risk", priority: 1, mode: "如果" },
+    { id: "branch_yes", source: gateway.id, target: yes.id, kind: "branch", label: "条件一", expression: "level1", priority: 1, mode: "如果" },
     { id: "branch_no", source: gateway.id, target: no.id, kind: "branch", label: "普通", expression: "normal", priority: 2, mode: "如果" },
     { id: "yes_merge", source: yes.id, target: merge.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
     { id: "no_merge", source: no.id, target: merge.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
@@ -289,13 +315,13 @@ test("workflow layout creates readable levels and branch lanes", () => {
   const workflow = baseWorkflow("布局测试");
   const [start, , end] = workflow.elements;
   const gateway = { ...workflow.elements[1], id: "gateway", type: "condition" as const, title: "条件" };
-  const high = { ...workflow.elements[1], id: "high", title: "高风险" };
-  const low = { ...workflow.elements[1], id: "low", title: "普通风险" };
+  const high = { ...workflow.elements[1], id: "high", title: "条件一" };
+  const low = { ...workflow.elements[1], id: "low", title: "条件二" };
   workflow.elements = [start, gateway, high, low, end];
   workflow.edges = [
     { id: "start_gateway", source: start.id, target: gateway.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
-    { id: "high_branch", source: gateway.id, target: high.id, kind: "branch", label: "高风险", expression: "risk", priority: 1, mode: "如果" },
-    { id: "low_branch", source: gateway.id, target: low.id, kind: "branch", label: "普通风险", expression: "normal", priority: 2, mode: "如果" },
+    { id: "high_branch", source: gateway.id, target: high.id, kind: "branch", label: "条件一", expression: "level1", priority: 1, mode: "如果" },
+    { id: "low_branch", source: gateway.id, target: low.id, kind: "branch", label: "条件二", expression: "level2", priority: 2, mode: "如果" },
     { id: "high_end", source: high.id, target: end.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
     { id: "low_end", source: low.id, target: end.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
   ];
@@ -310,19 +336,50 @@ test("workflow layout creates readable levels and branch lanes", () => {
   assert.ok(position("high").y < position("low").y);
 });
 
+test("workflow layout reserves space for nested branch lanes", () => {
+  const workflow = baseWorkflow("嵌套布局测试");
+  const [start, , end] = workflow.elements;
+  const gateway = { ...workflow.elements[1], id: "gateway", type: "condition" as const, title: "条件" };
+  const nested = { ...workflow.elements[1], id: "nested", type: "condition" as const, title: "二级条件" };
+  const direct = { ...workflow.elements[1], id: "direct", title: "直接审批" };
+  const yes = { ...workflow.elements[1], id: "nested_yes", title: "二级审批一" };
+  const no = { ...workflow.elements[1], id: "nested_no", title: "二级审批二" };
+  const merge = { ...workflow.elements[1], id: "merge", title: "汇合审批" };
+  workflow.elements = [start, gateway, nested, direct, yes, no, merge, end];
+  workflow.edges = [
+    { id: "start_gateway", source: start.id, target: gateway.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
+    { id: "branch_nested", source: gateway.id, target: nested.id, kind: "branch", label: "条件一", expression: "level1", priority: 1, mode: "如果" },
+    { id: "branch_direct", source: gateway.id, target: direct.id, kind: "branch", label: "条件二", expression: "level2", priority: 2, mode: "如果" },
+    { id: "nested_yes_edge", source: nested.id, target: yes.id, kind: "branch", label: "条件一", expression: "level1", priority: 1, mode: "如果" },
+    { id: "nested_no_edge", source: nested.id, target: no.id, kind: "branch", label: "否则", expression: "其他情况", priority: 2, mode: "否则" },
+    { id: "yes_merge", source: yes.id, target: merge.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
+    { id: "no_merge", source: no.id, target: merge.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
+    { id: "direct_merge", source: direct.id, target: merge.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
+    { id: "merge_end", source: merge.id, target: end.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
+  ];
+
+  const laidOut = layoutWorkflow(workflow, { originX: 80, centerY: 300, xGap: 260, yGap: 160 });
+  const position = (id: string) => laidOut.elements.find((element) => element.id === id)!;
+
+  assert.ok(Math.abs(position("direct").y - position("nested").y) >= 155);
+  assert.ok(Math.abs(position("nested_yes").y - position("nested_no").y) >= 155);
+  assert.ok(position("gateway").x < position("nested").x);
+  assert.ok(position("nested").x < position("nested_yes").x);
+});
+
 test("gateway merge target prefers the first shared downstream node before end", () => {
   const workflow = baseWorkflow("汇合测试");
   const [start, , end] = workflow.elements;
   const gateway = { ...workflow.elements[1], id: "gateway", type: "condition" as const, title: "条件" };
-  const high = { ...workflow.elements[1], id: "high", title: "高风险审批" };
+  const high = { ...workflow.elements[1], id: "high", title: "条件一审批" };
   const low = { ...workflow.elements[1], id: "low", title: "普通审批" };
   const audit = { ...workflow.elements[1], id: "audit", title: "审计抄送", type: "cc" as const };
   const merge = { ...workflow.elements[1], id: "merge", title: "记录日志", type: "system" as const };
   workflow.elements = [start, gateway, high, low, audit, merge, end];
   workflow.edges = [
     { id: "start_gateway", source: start.id, target: gateway.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
-    { id: "high_branch", source: gateway.id, target: high.id, kind: "branch", label: "高风险", expression: "risk", priority: 1, mode: "如果" },
-    { id: "low_branch", source: gateway.id, target: low.id, kind: "branch", label: "普通风险", expression: "normal", priority: 2, mode: "如果" },
+    { id: "high_branch", source: gateway.id, target: high.id, kind: "branch", label: "条件一", expression: "level1", priority: 1, mode: "如果" },
+    { id: "low_branch", source: gateway.id, target: low.id, kind: "branch", label: "条件二", expression: "level2", priority: 2, mode: "如果" },
     { id: "high_audit", source: high.id, target: audit.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
     { id: "audit_merge", source: audit.id, target: merge.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
     { id: "low_merge", source: low.id, target: merge.id, kind: "sequence", label: "", expression: "", priority: 1, mode: "如果" },
@@ -369,22 +426,22 @@ test("inserting after a node shifts the existing downstream chain", () => {
 
 test("condition expressions are built from structured parts", () => {
   const expression = composeConditionExpression({
-    field: "exportCount",
+    field: "requestCount",
     operator: "gt",
     value: "500",
   });
 
-  assert.equal(expression, "导出数量 大于 500");
+  assert.equal(expression, "申请数量 大于 500");
   assert.deepEqual(parseConditionExpression(expression), {
-    field: "exportCount",
+    field: "requestCount",
     operator: "gt",
     value: "500",
   });
 });
 
 test("legacy long branch expressions are normalized for the condition builder", () => {
-  assert.deepEqual(parseConditionExpression("导出数量 > 500 或包含未脱敏人脸图像"), {
-    field: "exportCount",
+  assert.deepEqual(parseConditionExpression("申请数量 > 500 或包含明细字段"), {
+    field: "requestCount",
     operator: "gt",
     value: "500",
   });
@@ -396,14 +453,14 @@ test("branch edge labels stay short and do not include full expressions", () => 
     source: "gateway",
     target: "approval",
     kind: "branch",
-    label: "高风险数据导出申请需要安全复核",
-    expression: "导出数量 > 500 或包含未脱敏人脸图像",
+    label: "条件一资料申请需要复核",
+    expression: "申请数量 > 500 或包含明细字段",
     priority: 1,
     mode: "如果",
   });
 
-  assert.equal(label, "1. 如果 高风险数据导出...");
-  assert.equal(label.includes("导出数量"), false);
+  assert.equal(label, "1. 如果 条件一资料申请...");
+  assert.equal(label.includes("申请数量"), false);
 });
 
 test("workflow import accepts exported schema and rejects invalid payloads", () => {

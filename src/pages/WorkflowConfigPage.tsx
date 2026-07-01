@@ -19,6 +19,8 @@ import {
 import {
   ArrowLeft,
   CheckCircle2,
+  ClipboardPaste,
+  Copy,
   Diamond,
   DiamondPlus,
   Download,
@@ -46,6 +48,7 @@ import {
   MarkerType,
   MiniMap,
   ReactFlow,
+  SelectionMode,
   type Connection,
   type Edge,
   type Node,
@@ -55,7 +58,7 @@ import {
 } from "@xyflow/react";
 import WorkflowEdgeLine from "../components/WorkflowEdgeLine";
 import WorkflowNode from "../components/WorkflowNode";
-import { createEdge, createElement } from "../data/workflowFactory";
+import { createEdge, createElement, uid } from "../data/workflowFactory";
 import {
   composeConditionExpression,
   CONDITION_FIELDS,
@@ -121,7 +124,7 @@ const typeLabel: Record<WorkflowElementType, string> = {
   approval: "审批任务",
   condition: "条件网关",
   cc: "抄送任务",
-  system: "安全动作",
+  system: "系统动作",
 };
 
 const nodeSize: Record<WorkflowElementType, { width: number; height: number }> = {
@@ -135,7 +138,7 @@ const nodeSize: Record<WorkflowElementType, { width: number; height: number }> =
 
 const approvalAssigneeOptions = [
   "业务负责人",
-  "安全管理员",
+  "流程管理员",
   "合规管理员",
   "数据管理员",
   "部门负责人",
@@ -147,10 +150,10 @@ const approvalAssigneeOptions = [
 
 const ccRangeOptions = [
   "审计员",
-  "数据安全专员",
+  "流程专员",
   "业务负责人",
   "合规管理员",
-  "安全管理员",
+  "流程管理员",
   "数据管理员",
   "直属上级",
   "发起人",
@@ -158,13 +161,13 @@ const ccRangeOptions = [
 
 const systemTargetOptions = [
   "当前审批实例",
-  "访问记录",
-  "导出文件摘要",
-  "主数据",
+  "申请记录",
+  "处理文件摘要",
+  "业务资料",
   "缓存",
   "临时文件",
   "备案报表",
-  "水印文件",
+  "标记文件",
   "操作日志",
 ];
 
@@ -172,6 +175,11 @@ interface WorkflowConfigPageProps {
   scene: ApprovalScene;
   onBack: () => void;
   onSaveWorkflow: (workflow: Workflow) => Promise<void>;
+}
+
+interface WorkflowClipboard {
+  elements: WorkflowElement[];
+  edges: WorkflowEdge[];
 }
 
 function cloneWorkflow(workflow: Workflow): Workflow {
@@ -228,6 +236,7 @@ function firstEditableElement(workflow: Workflow) {
 function toFlowNodes(
   workflow: Workflow,
   selection: Selection,
+  selectedNodeIds: Set<string>,
   onQuickAdd: (sourceId: string, type: WorkflowElementType) => void,
   onQuickDelete: (nodeId: string) => void,
   errorElementIds: Set<string>,
@@ -238,7 +247,9 @@ function toFlowNodes(
     type: "workflow",
     position: { x: element.x, y: element.y },
     data: { element, onQuickAdd, onQuickDelete } as unknown as Record<string, unknown>,
-    selected: selection.kind === "node" && selection.id === element.id,
+    selected:
+      selectedNodeIds.has(element.id) ||
+      (selection.kind === "node" && selection.id === element.id),
     className: errorElementIds.has(element.id)
       ? "has-validation-error"
       : warningElementIds.has(element.id)
@@ -252,6 +263,7 @@ function toFlowNodes(
 function toFlowEdges(
   workflow: Workflow,
   selection: Selection,
+  selectedEdgeIds: Set<string>,
   errorEdgeIds: Set<string>,
   warningEdgeIds: Set<string>,
 ): Edge[] {
@@ -275,7 +287,7 @@ function toFlowEdges(
     },
     style: {
       stroke:
-        selection.kind === "edge" && selection.id === edge.id
+        selectedEdgeIds.has(edge.id) || (selection.kind === "edge" && selection.id === edge.id)
           ? "#176bdc"
           : errorEdgeIds.has(edge.id)
             ? "#c9362e"
@@ -284,9 +296,14 @@ function toFlowEdges(
               : edge.kind === "branch"
                 ? "#6952c7"
                 : "#7f8fa4",
-      strokeWidth: selection.kind === "edge" && selection.id === edge.id ? 3 : edge.kind === "branch" ? 2.4 : 2,
+      strokeWidth:
+        selectedEdgeIds.has(edge.id) || (selection.kind === "edge" && selection.id === edge.id)
+          ? 3
+          : edge.kind === "branch"
+            ? 2.4
+            : 2,
     },
-    selected: selection.kind === "edge" && selection.id === edge.id,
+    selected: selectedEdgeIds.has(edge.id) || (selection.kind === "edge" && selection.id === edge.id),
     interactionWidth: 20,
     zIndex: 0,
     data: {
@@ -309,13 +326,20 @@ export default function WorkflowConfigPage({
     kind: "node",
     id: firstEditableElement(scene.workflow).id,
   }));
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>(() => [
+    firstEditableElement(scene.workflow).id,
+  ]);
+  const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
   const [activePanel, setActivePanel] = useState("element");
   const [zoom, setZoom] = useState(0.65);
   const [history, setHistory] = useState<WorkflowHistory>(() => createWorkflowHistory());
+  const [clipboardSize, setClipboardSize] = useState(0);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const flowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const workflowClipboardRef = useRef<WorkflowClipboard | null>(null);
+  const pasteSequenceRef = useRef(0);
 
   const selectedElement = useMemo(() => {
     if (selection.kind !== "node") return undefined;
@@ -371,14 +395,35 @@ export default function WorkflowConfigPage({
     [validations],
   );
   const branchCount = workflow.edges.filter((edge) => edge.kind === "branch").length;
+  const selectedNodeIdSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
+  const selectedEdgeIdSet = useMemo(() => new Set(selectedEdgeIds), [selectedEdgeIds]);
+  const selectedCopyableCount = useMemo(
+    () =>
+      workflow.elements.filter(
+        (element) =>
+          selectedNodeIdSet.has(element.id) &&
+          element.type !== "start" &&
+          element.type !== "end",
+      ).length,
+    [selectedNodeIdSet, workflow.elements],
+  );
 
   const syncSelectionForWorkflow = (nextWorkflow: Workflow) => {
+    setSelectedNodeIds((current) =>
+      current.filter((id) => nextWorkflow.elements.some((element) => element.id === id)),
+    );
+    setSelectedEdgeIds((current) =>
+      current.filter((id) => nextWorkflow.edges.some((edge) => edge.id === id)),
+    );
     const exists =
       selection.kind === "node"
         ? nextWorkflow.elements.some((element) => element.id === selection.id)
         : nextWorkflow.edges.some((edge) => edge.id === selection.id);
     if (!exists) {
-      setSelection({ kind: "node", id: firstEditableElement(nextWorkflow).id });
+      const fallback = firstEditableElement(nextWorkflow).id;
+      setSelection({ kind: "node", id: fallback });
+      setSelectedNodeIds([fallback]);
+      setSelectedEdgeIds([]);
       setActivePanel("element");
     }
   };
@@ -439,6 +484,8 @@ export default function WorkflowConfigPage({
       draft.edges.push(createEdge(source.id, next.id));
       if (target) draft.edges.push(createEdge(next.id, target.id));
       setSelection({ kind: "node", id: next.id });
+      setSelectedNodeIds([next.id]);
+      setSelectedEdgeIds([]);
       setActivePanel("element");
     });
     message.success("已添加节点");
@@ -474,6 +521,8 @@ export default function WorkflowConfigPage({
       draft.elements = arranged.elements;
       draft.edges = arranged.edges;
       setSelection({ kind: "node", id: gateway.id });
+      setSelectedNodeIds([gateway.id]);
+      setSelectedEdgeIds([]);
       setActivePanel("branch");
     });
     message.success("已添加条件网关");
@@ -508,6 +557,8 @@ export default function WorkflowConfigPage({
         draft.elements = arranged.elements;
         draft.edges = arranged.edges;
         setSelection({ kind: "node", id: nested.id });
+        setSelectedNodeIds([nested.id]);
+        setSelectedEdgeIds([]);
         setActivePanel("branch");
         return;
       }
@@ -522,6 +573,8 @@ export default function WorkflowConfigPage({
       draft.elements = arranged.elements;
       draft.edges = arranged.edges;
       setSelection({ kind: "node", id: next.id });
+      setSelectedNodeIds([next.id]);
+      setSelectedEdgeIds([]);
       setActivePanel("element");
     });
     message.success(type === "condition" ? "已添加嵌套条件" : "已新增条件分支");
@@ -551,6 +604,8 @@ export default function WorkflowConfigPage({
 
   const appendElementFrom = (sourceId: string, type: WorkflowElementType) => {
     setSelection({ kind: "node", id: sourceId });
+    setSelectedNodeIds([sourceId]);
+    setSelectedEdgeIds([]);
     appendElement(type, sourceId);
   };
 
@@ -584,6 +639,8 @@ export default function WorkflowConfigPage({
             draft.edges = next.edges;
             const fallback = incoming(workflow, element.id)[0]?.source || firstEditableElement(next).id;
             setSelection({ kind: "node", id: fallback });
+            setSelectedNodeIds([fallback]);
+            setSelectedEdgeIds([]);
             setActivePanel("element");
           });
           message.success("条件网关已删除");
@@ -611,6 +668,8 @@ export default function WorkflowConfigPage({
       }
       const fallback = inEdges[0]?.source || firstEditableElement(draft).id;
       setSelection({ kind: "node", id: fallback });
+      setSelectedNodeIds([fallback]);
+      setSelectedEdgeIds([]);
       setActivePanel("element");
     });
     message.success("节点已删除");
@@ -634,6 +693,8 @@ export default function WorkflowConfigPage({
               draft.elements = next.elements;
               draft.edges = next.edges;
               setSelection({ kind: "node", id: edge.source });
+              setSelectedNodeIds([edge.source]);
+              setSelectedEdgeIds([]);
               setActivePanel("element");
             });
             message.success("分支及后续节点已删除");
@@ -644,6 +705,8 @@ export default function WorkflowConfigPage({
               draft.elements = next.elements;
               draft.edges = next.edges;
               setSelection({ kind: "node", id: edge.source });
+              setSelectedNodeIds([edge.source]);
+              setSelectedEdgeIds([]);
               setActivePanel("element");
             });
             message.success("分支连线已删除");
@@ -738,11 +801,99 @@ export default function WorkflowConfigPage({
     message.success("流程已停用");
   };
 
+  const copySelectedNodes = () => {
+    const copyableElements = workflow.elements.filter(
+      (element) =>
+        selectedNodeIdSet.has(element.id) &&
+        element.type !== "start" &&
+        element.type !== "end",
+    );
+    if (!copyableElements.length) {
+      message.warning("请选择可复制的流程节点");
+      return;
+    }
+
+    const copyableIds = new Set(copyableElements.map((element) => element.id));
+    workflowClipboardRef.current = {
+      elements: copyableElements,
+      edges: workflow.edges.filter(
+        (edge) => copyableIds.has(edge.source) && copyableIds.has(edge.target),
+      ),
+    };
+    setClipboardSize(copyableElements.length);
+    message.success(`已复制 ${copyableElements.length} 个节点`);
+  };
+
+  const pasteClipboardNodes = () => {
+    const clipboard = workflowClipboardRef.current;
+    if (!clipboard?.elements.length) {
+      message.warning("剪贴板中暂无节点");
+      return;
+    }
+
+    pasteSequenceRef.current += 1;
+    const offset = 56 + pasteSequenceRef.current * 14;
+    const nextSelectedIds: string[] = [];
+
+    updateWorkflow((draft) => {
+      const idMap = new Map<string, string>();
+      const pastedElements = clipboard.elements.map((element) => {
+        const id = uid(element.type);
+        idMap.set(element.id, id);
+        nextSelectedIds.push(id);
+        return {
+          ...element,
+          id,
+          title: element.title.endsWith("副本") ? element.title : `${element.title} 副本`,
+          x: element.x + offset,
+          y: element.y + offset,
+        };
+      });
+
+      draft.elements.push(...pastedElements);
+      clipboard.edges.forEach((edge) => {
+        const source = idMap.get(edge.source);
+        const target = idMap.get(edge.target);
+        if (!source || !target) return;
+        draft.edges.push(
+          createEdge(
+            source,
+            target,
+            edge.label,
+            edge.expression,
+            edge.priority,
+            edge.mode,
+            edge.kind,
+          ),
+        );
+      });
+
+      if (nextSelectedIds[0]) {
+        setSelection({ kind: "node", id: nextSelectedIds[0] });
+        setSelectedNodeIds(nextSelectedIds);
+        setSelectedEdgeIds([]);
+        setActivePanel("element");
+      }
+    });
+    message.success(`已粘贴 ${nextSelectedIds.length} 个节点`);
+  };
+
+  const isTypingShortcutTarget = (target: EventTarget | null) => {
+    const element = target as HTMLElement | null;
+    const tagName = element?.tagName.toLowerCase();
+    return Boolean(
+      element?.isContentEditable ||
+        tagName === "input" ||
+        tagName === "textarea" ||
+        tagName === "select" ||
+        element?.closest(".ant-select") ||
+        element?.closest(".ant-input-number"),
+    );
+  };
+
   useEffect(() => {
     const handleHistoryShortcuts = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const tagName = target?.tagName.toLowerCase();
-      if (target?.isContentEditable || tagName === "input" || tagName === "textarea") return;
+      if (isTypingShortcutTarget(event.target)) return;
 
       const isModifierPressed = event.metaKey || event.ctrlKey;
       if (!isModifierPressed) return;
@@ -757,26 +908,44 @@ export default function WorkflowConfigPage({
       } else if (key === "y") {
         event.preventDefault();
         redoWorkflowChange();
+      } else if (key === "c") {
+        event.preventDefault();
+        copySelectedNodes();
+      } else if (key === "v") {
+        event.preventDefault();
+        pasteClipboardNodes();
       }
     };
 
     window.addEventListener("keydown", handleHistoryShortcuts);
     return () => window.removeEventListener("keydown", handleHistoryShortcuts);
-  }, [history, workflow, selection]);
+  }, [history, workflow, selection, selectedNodeIdSet]);
 
   useEffect(() => {
     setNodes(
       toFlowNodes(
         workflow,
         selection,
+        selectedNodeIdSet,
         appendElementFrom,
         deleteElementById,
         errorElementIds,
         warningElementIds,
       ),
     );
-    setEdges(toFlowEdges(workflow, selection, errorEdgeIds, warningEdgeIds));
-  }, [errorEdgeIds, errorElementIds, selection, warningEdgeIds, warningElementIds, workflow, setEdges, setNodes]);
+    setEdges(toFlowEdges(workflow, selection, selectedEdgeIdSet, errorEdgeIds, warningEdgeIds));
+  }, [
+    errorEdgeIds,
+    errorElementIds,
+    selectedEdgeIdSet,
+    selectedNodeIdSet,
+    selection,
+    warningEdgeIds,
+    warningElementIds,
+    workflow,
+    setEdges,
+    setNodes,
+  ]);
 
   const selectedGateway = gatewayForBranchAction();
   const currentBranch =
@@ -820,6 +989,8 @@ export default function WorkflowConfigPage({
           updateEdge={updateEdge}
           selectEdge={(id) => {
             setSelection({ kind: "edge", id });
+            setSelectedNodeIds([]);
+            setSelectedEdgeIds([id]);
             setActivePanel("branch");
           }}
           addBranch={() => {
@@ -904,7 +1075,7 @@ export default function WorkflowConfigPage({
           <div className="canvas-toolbar">
             <div className="canvas-meta">
               <strong>{scene.name}</strong>
-              <span>{scene.desc || "配置当前场景的审批流转节点、条件分支、抄送规则和安全动作。"}</span>
+              <span>{scene.desc || "配置当前场景的审批流转节点、条件分支、抄送规则和系统动作。"}</span>
             </div>
             <div className="canvas-stats">
               <Tag color="blue">节点 {workflow.elements.length}</Tag>
@@ -924,7 +1095,7 @@ export default function WorkflowConfigPage({
                 抄送任务
               </Button>
               <Button icon={<ShieldCheck size={15} />} onClick={() => appendElement("system")}>
-                安全动作
+                系统动作
               </Button>
             </Space>
             <Space wrap>
@@ -948,6 +1119,18 @@ export default function WorkflowConfigPage({
                 icon={<Redo2 size={16} />}
                 onClick={redoWorkflowChange}
               />
+              <Button
+                aria-label="复制节点"
+                disabled={!selectedCopyableCount}
+                icon={<Copy size={16} />}
+                onClick={copySelectedNodes}
+              />
+              <Button
+                aria-label="粘贴节点"
+                disabled={!clipboardSize}
+                icon={<ClipboardPaste size={16} />}
+                onClick={pasteClipboardNodes}
+              />
               <Button icon={<LayoutGrid size={16} />} onClick={autoLayout}>
                 整理布局
               </Button>
@@ -966,23 +1149,65 @@ export default function WorkflowConfigPage({
               fitView
               minZoom={0.35}
               maxZoom={1.5}
+              deleteKeyCode={null}
+              selectionKeyCode="Shift"
+              multiSelectionKeyCode={["Meta", "Control", "Shift"]}
+              selectionMode={SelectionMode.Partial}
               defaultViewport={{ x: 0, y: 0, zoom }}
               onInit={(instance) => {
                 flowInstanceRef.current = instance;
               }}
               onMove={(_, viewport) => setZoom(viewport.zoom)}
-              onNodeClick={(_, node) => {
+              onNodeClick={(event, node) => {
+                const isMulti = event.metaKey || event.ctrlKey || event.shiftKey;
                 setSelection({ kind: "node", id: node.id });
+                setSelectedEdgeIds([]);
+                setSelectedNodeIds((current) => {
+                  if (!isMulti) return [node.id];
+                  return current.includes(node.id)
+                    ? current.filter((id) => id !== node.id)
+                    : [...current, node.id];
+                });
                 setActivePanel("element");
+              }}
+              onSelectionChange={({ nodes: selectedNodes, edges: selectedEdges }) => {
+                const nodeIds = selectedNodes.map((node) => node.id);
+                const edgeIds = selectedEdges.map((edge) => edge.id);
+                if (nodeIds.length) {
+                  setSelectedNodeIds(nodeIds);
+                  setSelectedEdgeIds([]);
+                  setSelection({ kind: "node", id: nodeIds[nodeIds.length - 1] });
+                  setActivePanel("element");
+                  return;
+                }
+                if (edgeIds.length) {
+                  setSelectedNodeIds([]);
+                  setSelectedEdgeIds(edgeIds);
+                  setSelection({ kind: "edge", id: edgeIds[edgeIds.length - 1] });
+                  setActivePanel("branch");
+                  return;
+                }
+                setSelectedNodeIds([]);
+                setSelectedEdgeIds([]);
               }}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onEdgeClick={(_, edge) => {
                 setSelection({ kind: "edge", id: edge.id });
+                setSelectedNodeIds([]);
+                setSelectedEdgeIds([edge.id]);
                 setActivePanel("branch");
               }}
-              onNodeDragStop={(_, node) => {
-                updateElement(node.id, { x: Math.round(node.position.x), y: Math.round(node.position.y) });
+              onNodeDragStop={(_, node, draggedNodes) => {
+                const movedNodes = draggedNodes.length ? draggedNodes : [node];
+                updateWorkflow((draft) => {
+                  movedNodes.forEach((movedNode) => {
+                    const element = draft.elements.find((item) => item.id === movedNode.id);
+                    if (!element) return;
+                    element.x = Math.round(movedNode.position.x);
+                    element.y = Math.round(movedNode.position.y);
+                  });
+                });
               }}
               onConnect={(connection: Connection) => {
                 if (!connection.source || !connection.target) return;
@@ -1145,11 +1370,11 @@ function ElementPanel({
       {element.type === "system" && (
         <>
           <label>
-            <span>安全动作</span>
+            <span>系统动作</span>
             <Select
               value={element.systemAction}
               onChange={(value) => updateElement(element.id, { systemAction: value })}
-              options={["记录操作日志", "触发异常告警", "删除数据", "匿名化处理", "生成备案材料"].map((value) => ({
+              options={["记录操作日志", "记录处理结果", "资料处理", "生成业务材料", "生成备案材料"].map((value) => ({
                 value,
                 label: value,
               }))}

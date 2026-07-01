@@ -57,11 +57,18 @@ interface SceneFormValues {
 
 const tagColor: Record<SceneTag, string> = {
   自定义: "blue",
-  高危: "red",
+  高危: "green",
   强制: "orange",
   受控: "processing",
   通用: "green",
+  标准: "default",
 };
+
+const sceneTagOptions: SceneTag[] = ["自定义", "通用", "标准", "强制", "受控"];
+
+function displayTag(tag: SceneTag): SceneTag {
+  return tag === "高危" ? "通用" : tag;
+}
 
 function countApprovals(scene: ApprovalScene) {
   return scene.workflow.elements.filter((element) => element.type === "approval")
@@ -322,6 +329,11 @@ export default function SceneManagementPage({
             <span className="panel-title">
               <Files size={17} />
               场景列表
+              <span className="panel-title-stats">
+                场景 {metrics.sceneCount}
+                <i />
+                已启用 {metrics.enabledCount}
+              </span>
             </span>
           }
         >
@@ -364,7 +376,7 @@ export default function SceneManagementPage({
                         <Title level={4}>{scene.name}</Title>
                         <p>{scene.desc || "未填写说明"}</p>
                       </div>
-                      <Tag color={tagColor[scene.tag]}>{scene.tag}</Tag>
+                      <Tag color={tagColor[displayTag(scene.tag)]}>{displayTag(scene.tag)}</Tag>
                     </div>
 
                     <div className="scene-meta-grid">
@@ -456,11 +468,11 @@ export default function SceneManagementPage({
             name="name"
             rules={[{ required: true, message: "请填写场景名称" }]}
           >
-            <Input placeholder="例如：高危数据访问、备案报表导出" />
+            <Input placeholder="例如：通用资料申请、备案报表导出" />
           </Form.Item>
           <Form.Item label="场景标签" name="tag" initialValue="自定义">
             <Select
-              options={["自定义", "高危", "强制", "受控", "通用"].map((tag) => ({
+              options={sceneTagOptions.map((tag) => ({
                 value: tag,
                 label: tag,
               }))}
@@ -469,7 +481,7 @@ export default function SceneManagementPage({
           <Form.Item label="说明" name="desc">
             <Input.TextArea
               rows={4}
-              placeholder="说明这个场景适用的业务范围、触发动作或风险要求"
+              placeholder="说明这个场景适用的业务范围、触发动作或处理要求"
             />
           </Form.Item>
         </Form>

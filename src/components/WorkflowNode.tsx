@@ -31,7 +31,7 @@ function subtitleForNode(node: WorkflowElement) {
     return `${node.approverType}：${node.assignee || "未配置"}`;
   }
   if (node.type === "cc") return node.ccRange || "未配置抄送范围";
-  if (node.type === "system") return node.systemAction || "安全动作";
+  if (node.type === "system") return node.systemAction || "系统动作";
   return node.desc || "流程节点";
 }
 
@@ -88,11 +88,11 @@ export default function WorkflowNode({ data, selected }: NodeProps) {
               <Send size={15} />
             </button>
           </Tooltip>
-          <Tooltip title="添加安全动作" {...quickTipProps}>
+          <Tooltip title="添加系统动作" {...quickTipProps}>
             <button
               type="button"
-              aria-label="添加安全动作"
-              title="添加安全动作"
+              aria-label="添加系统动作"
+              title="添加系统动作"
               onClick={(event) => {
                 event.stopPropagation();
                 onQuickAdd?.(node.id, "system");

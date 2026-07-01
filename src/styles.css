@@ -161,6 +161,21 @@ textarea {
   color: var(--blue);
 }
 
+.panel-title-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.panel-title-stats i {
+  width: 1px;
+  height: 12px;
+  background: var(--line-strong);
+}
+
 .filter-line {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) 170px auto;

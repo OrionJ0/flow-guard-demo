@@ -1,6 +1,6 @@
 export type WorkflowStatus = "草稿" | "已启用" | "有未发布变更" | "已停用";
 
-export type SceneTag = "自定义" | "高危" | "强制" | "受控" | "通用";
+export type SceneTag = "自定义" | "高危" | "强制" | "受控" | "通用" | "标准";
 
 export type WorkflowElementType =
   | "start"
@@ -33,7 +33,10 @@ export interface WorkflowElement {
     | "触发异常告警"
     | "删除数据"
     | "匿名化处理"
-    | "生成备案材料";
+    | "生成备案材料"
+    | "资料处理"
+    | "生成业务材料"
+    | "记录处理结果";
   systemTarget: string;
 }
 
