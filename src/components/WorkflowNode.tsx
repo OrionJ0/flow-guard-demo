@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from "react";
+import type { KeyboardEvent, MouseEvent } from "react";
 import { Handle, NodeToolbar, Position, type NodeProps } from "@xyflow/react";
 import { Tooltip } from "antd";
 import {
@@ -22,7 +22,7 @@ export interface WorkflowNodeData {
   onQuickCopy?: (nodeId: string) => void;
   onQuickPaste?: (nodeId: string) => void;
   onQuickDelete?: (nodeId: string) => void;
-  onSelectNode?: (nodeId: string) => void;
+  onSelectNode?: (nodeId: string, isMulti?: boolean) => void;
 }
 
 const iconByType = {
@@ -58,7 +58,7 @@ export default function WorkflowNode({ data, selected }: NodeProps) {
   const canAppend = node.type !== "end";
   const canDelete = node.type !== "start" && node.type !== "end";
   const canCopy = node.type !== "start" && node.type !== "end";
-  const canQuickPaste = Boolean(canPaste && canAppend && canCopy);
+  const canQuickPaste = Boolean(canPaste && canAppend);
   const quickTipProps = {
     placement: "right" as const,
     mouseEnterDelay: 0.15,
@@ -69,15 +69,33 @@ export default function WorkflowNode({ data, selected }: NodeProps) {
     event.stopPropagation();
     onSelectNode?.(node.id);
   };
+  const handleNodeMouseDown = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    onSelectNode?.(node.id, event.metaKey || event.ctrlKey || event.shiftKey);
+  };
   const selectableProps = {
     role: "button",
     tabIndex: 0,
+    "data-workflow-node-root": "true",
     "aria-label": node.title,
+    onMouseDown: handleNodeMouseDown,
     onKeyDown: handleSelectKeyDown,
   };
 
   const toolbar = selected && active && (canAppend || canCopy || canQuickPaste || canDelete) && (
-    <NodeToolbar position={Position.Right} offset={12} className="node-quick-toolbar">
+    <NodeToolbar
+      position={Position.Right}
+      offset={12}
+      className="node-quick-toolbar"
+      onMouseDown={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+    >
       {canAppend && (
         <>
           <Tooltip title="添加审批任务" {...quickTipProps}>

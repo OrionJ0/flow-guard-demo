@@ -202,6 +202,22 @@ function branchEdges(workflow: Workflow, gatewayId: string) {
   return outgoing(workflow, gatewayId).filter((edge) => edge.kind === "branch");
 }
 
+function reachableElementIds(workflow: Workflow, startIds: string[]) {
+  const visited = new Set<string>();
+  const queue = [...startIds];
+
+  while (queue.length) {
+    const current = queue.shift()!;
+    if (visited.has(current)) continue;
+    visited.add(current);
+    outgoing(workflow, current).forEach((edge) => {
+      if (!visited.has(edge.target)) queue.push(edge.target);
+    });
+  }
+
+  return visited;
+}
+
 function toSelectOptions(values: string[]) {
   return values.map((value) => ({ value, label: value }));
 }
@@ -335,6 +351,32 @@ function findPasteOrigin(
   return { x: baseX + stepX * 10, y: baseY + stepY * 8 };
 }
 
+function sortElementsByPosition(elements: WorkflowElement[]) {
+  return [...elements].sort((a, b) => {
+    const xDelta = a.x - b.x;
+    if (xDelta !== 0) return xDelta;
+    return a.y - b.y;
+  });
+}
+
+function clipboardEntryElements(clipboard: WorkflowClipboard) {
+  const incomingIds = new Set(clipboard.edges.map((edge) => edge.target));
+  return sortElementsByPosition(clipboard.elements.filter((element) => !incomingIds.has(element.id)));
+}
+
+function clipboardExitElements(clipboard: WorkflowClipboard) {
+  const outgoingIds = new Set(clipboard.edges.map((edge) => edge.source));
+  return sortElementsByPosition(clipboard.elements.filter((element) => !outgoingIds.has(element.id)));
+}
+
+function clipboardInsertWidth(elements: WorkflowElement[]) {
+  const minX = Math.min(...elements.map((element) => element.x));
+  const maxRight = Math.max(
+    ...elements.map((element) => element.x + nodeSize[element.type].width),
+  );
+  return Math.max(260, maxRight - minX + 72);
+}
+
 function toFlowNodes(
   workflow: Workflow,
   selection: Selection,
@@ -344,7 +386,7 @@ function toFlowNodes(
   onQuickCopy: (nodeId: string) => void,
   onQuickPaste: (nodeId: string) => void,
   onQuickDelete: (nodeId: string) => void,
-  onSelectNode: (nodeId: string) => void,
+  onSelectNode: (nodeId: string, isMulti?: boolean) => void,
   errorElementIds: Set<string>,
   warningElementIds: Set<string>,
 ): Node[] {
@@ -618,6 +660,7 @@ export default function WorkflowConfigPage({
   };
   const hasMultipleNodeSelection = selectedNodeIds.length > 1;
   const hasMultipleEdgeSelection = selectedEdgeIds.length > 1;
+  const canPasteAfterCurrentNode = Boolean(clipboardSize && selectedElement && selectedElement.type !== "end");
   const deleteSelectionDisabled =
     hasMultipleNodeSelection ||
     hasMultipleEdgeSelection ||
@@ -1055,28 +1098,57 @@ export default function WorkflowConfigPage({
       return;
     }
 
-    pasteSequenceRef.current += 1;
-    const anchor = anchorNodeId
-      ? workflow.elements.find((element) => element.id === anchorNodeId)
+    const currentAnchorId =
+      anchorNodeId || (selectedNodeIds.length === 1 ? selectedNodeIds[0] : undefined);
+    const anchor = currentAnchorId
+      ? workflow.elements.find((element) => element.id === currentAnchorId)
       : undefined;
+    if (!anchor) {
+      message.warning("请选择一个当前节点后粘贴");
+      return;
+    }
+    if (anchor.type === "end") {
+      message.warning("结束事件后不能继续粘贴节点");
+      return;
+    }
+
+    pasteSequenceRef.current += 1;
     const minSourceX = Math.min(...clipboard.elements.map((element) => element.x));
     const minSourceY = Math.min(...clipboard.elements.map((element) => element.y));
+    const primaryEntry = clipboardEntryElements(clipboard)[0] || sortElementsByPosition(clipboard.elements)[0];
     const offset = 56 + pasteSequenceRef.current * 14;
-    const initialBaseX = anchor
-      ? anchor.x + nodeSize[anchor.type].width + 96
-      : minSourceX + 280 + offset;
-    const initialBaseY = anchor ? anchor.y : minSourceY + 104 + offset;
-    const pasteOrigin = findPasteOrigin(
-      initialBaseX,
-      initialBaseY,
-      clipboard.elements,
-      workflow.elements,
-      minSourceX,
-      minSourceY,
-    );
     const nextSelectedIds: string[] = [];
 
     updateWorkflow((draft) => {
+      const draftAnchor = draft.elements.find((element) => element.id === anchor.id);
+      if (!draftAnchor) return;
+      const originalOutgoingEdges = draftAnchor.type === "condition" ? [] : outgoing(draft, draftAnchor.id);
+      const originalOutgoingEdgeIds = new Set(originalOutgoingEdges.map((edge) => edge.id));
+      const reconnectTargetIds = [...new Set(originalOutgoingEdges.map((edge) => edge.target))];
+      const gatewayMergeTargetId =
+        draftAnchor.type === "condition" ? findGatewayMergeTarget(draft, draftAnchor.id) : undefined;
+
+      if (reconnectTargetIds.length) {
+        const shiftedIds = reachableElementIds(draft, reconnectTargetIds);
+        const deltaX = clipboardInsertWidth(clipboard.elements);
+        draft.elements.forEach((element) => {
+          if (shiftedIds.has(element.id)) element.x += deltaX;
+        });
+        draft.edges = draft.edges.filter((edge) => !originalOutgoingEdgeIds.has(edge.id));
+      }
+
+      const initialBaseX = draftAnchor.x + 260;
+      const initialBaseY = primaryEntry
+        ? draftAnchor.y - (primaryEntry.y - minSourceY)
+        : draftAnchor.y + offset;
+      const pasteOrigin = findPasteOrigin(
+        initialBaseX,
+        initialBaseY,
+        clipboard.elements,
+        draft.elements,
+        minSourceX,
+        minSourceY,
+      );
       const idMap = new Map<string, string>();
       const pastedElements = clipboard.elements.map((element) => {
         const id = uid(element.type);
@@ -1108,12 +1180,54 @@ export default function WorkflowConfigPage({
           ),
         );
       });
+
+      const entrySourceElements = clipboardEntryElements(clipboard);
+      const exitSourceElements = clipboardExitElements(clipboard);
+      const entryIds = (entrySourceElements.length ? entrySourceElements : sortElementsByPosition(clipboard.elements))
+        .map((element) => idMap.get(element.id))
+        .filter((id): id is string => Boolean(id));
+      const exitIds = (exitSourceElements.length ? exitSourceElements : sortElementsByPosition(clipboard.elements))
+        .map((element) => idMap.get(element.id))
+        .filter((id): id is string => Boolean(id));
+
+      if (draftAnchor.type === "condition") {
+        const branchTotal = branchEdges(draft, draftAnchor.id).length;
+        entryIds.forEach((entryId, index) => {
+          const priority = branchTotal + index + 1;
+          draft.edges.push(
+            createEdge(
+              draftAnchor.id,
+              entryId,
+              `条件${priority}`,
+              "请配置条件表达",
+              priority,
+              "如果",
+              "branch",
+            ),
+          );
+        });
+        if (gatewayMergeTargetId) {
+          exitIds.forEach((exitId) => {
+            draft.edges.push(createEdge(exitId, gatewayMergeTargetId));
+          });
+        }
+        const arranged = spreadGatewayBranches(draft, draftAnchor.id);
+        draft.elements = arranged.elements;
+        draft.edges = arranged.edges;
+        return;
+      }
+
+      entryIds.forEach((entryId) => {
+        draft.edges.push(createEdge(draftAnchor.id, entryId));
+      });
+      reconnectTargetIds.forEach((targetId) => {
+        exitIds.forEach((exitId) => {
+          draft.edges.push(createEdge(exitId, targetId));
+        });
+      });
     });
     if (nextSelectedIds[0]) {
-      replaceSelectedNodeIds(nextSelectedIds);
-      replaceSelectedEdgeIds([]);
-      replaceSelection({ kind: "node", id: nextSelectedIds[0] });
-      setActivePanel("element");
+      selectNodeIds(nextSelectedIds, nextSelectedIds[0]);
     }
     message.success(`已粘贴 ${nextSelectedIds.length} 个节点`);
   };
@@ -1123,8 +1237,19 @@ export default function WorkflowConfigPage({
     selectNodeIds([nodeId], nodeId);
   };
 
-  const selectNodeFromKeyboard = (nodeId: string) => {
-    selectNodeIds([nodeId], nodeId);
+  const selectNodeFromInteraction = (nodeId: string, isMulti = false) => {
+    if (!isMulti) {
+      selectNodeIds([nodeId], nodeId);
+      return;
+    }
+    const next = selectedNodeIds.includes(nodeId)
+      ? selectedNodeIds.filter((id) => id !== nodeId)
+      : [...selectedNodeIds, nodeId];
+    if (next.length) {
+      selectNodeIds(next, next.includes(nodeId) ? nodeId : next[next.length - 1]);
+    } else {
+      clearSelection();
+    }
   };
 
   const isTypingShortcutTarget = (target: EventTarget | null) => {
@@ -1198,7 +1323,7 @@ export default function WorkflowConfigPage({
         copySingleNode,
         pasteClipboardNodes,
         deleteElementById,
-        selectNodeFromKeyboard,
+        selectNodeFromInteraction,
         errorElementIds,
         warningElementIds,
       ),
@@ -1413,7 +1538,7 @@ export default function WorkflowConfigPage({
                   />
                   <Button
                     aria-label="粘贴节点"
-                    disabled={!clipboardSize}
+                    disabled={!canPasteAfterCurrentNode}
                     icon={<ClipboardPaste size={16} />}
                     onClick={() => pasteClipboardNodes()}
                   />
@@ -1454,19 +1579,10 @@ export default function WorkflowConfigPage({
               }}
               onMove={(_, viewport) => setZoom(viewport.zoom)}
               onNodeClick={(event, node) => {
-                const isMulti = event.metaKey || event.ctrlKey || event.shiftKey;
-                if (!isMulti) {
-                  selectNodeIds([node.id], node.id);
+                if ((event.target as HTMLElement | null)?.closest("[data-workflow-node-root='true']")) {
                   return;
                 }
-                const next = selectedNodeIds.includes(node.id)
-                  ? selectedNodeIds.filter((id) => id !== node.id)
-                  : [...selectedNodeIds, node.id];
-                if (next.length) {
-                  selectNodeIds(next, next.includes(node.id) ? node.id : next[next.length - 1]);
-                } else {
-                  clearSelection();
-                }
+                selectNodeFromInteraction(node.id, event.metaKey || event.ctrlKey || event.shiftKey);
               }}
               onSelectionChange={({ nodes: selectedNodes, edges: selectedEdges }) => {
                 if (Date.now() < ignoreFlowSelectionUntilRef.current) return;
